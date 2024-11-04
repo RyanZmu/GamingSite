@@ -1,0 +1,147 @@
+body {
+    margin: 0;
+    background-color: #1B262C !important;
+    color: #2C74B3 !important;
+}
+
+.navbar, .nav-link, .navbar-brand {
+    background-color: #1B262C !important;
+    color: #BBE1FA !important;
+}
+
+/*.navbar {*/
+/*    border-bottom-style: solid;*/
+/*    border-bottom-color: #0f4c752d;*/
+/*    border-bottom-width: 1px;*/
+/*}*/
+
+.featured-card {
+    max-height: 50vh;
+    background-color: #0F4C75 !important;
+    color: #BBE1FA !important;
+    z-index:0;
+}
+
+.discover-filter {
+    z-index:1
+}
+
+.main-header, .main-sub-header {
+    color: #BBE1FA !important;
+    font-family: "Oxanium", sans-serif;
+    font-optical-sizing: auto;
+    font-weight: 10;
+    font-style: normal;
+}
+
+.must-play-container {
+    min-width: 30vw !important;
+/*    margin: 10px*/
+/*    position: absolute;*/
+
+}
+
+.must-play-list-item {
+    background-color: #0f4c752d !important;
+    max-width:15vw;
+    margin: 10px;
+}
+
+.must-play-list-item a {
+    color: #BBE1FA !important;
+    text-decoration: none;
+}
+
+.must-play-list-item:hover {
+    background-color: #0f4c75 !important;
+}
+
+.hero-container {
+/*    background-color: #2C74B3 !important;*/
+    background-image: linear-gradient(to left, #2C74B3, #1B262C);
+    color: #BBE1FA !important;
+    min-height: 50vh;
+    max-height: 50vh;
+    margin-bottom: 5vh;
+}
+
+.hero-image-container {
+    background-color: #0F4C75 !important;
+    min-height: 49vh;
+    max-height: 49vh;
+/*    object-fit: scale-down !important;*/
+}
+
+.hero-game-image {
+    min-height: 49vh;
+    max-height: 49vh;
+}
+
+.featured-game-screenshots {
+    max-height: 10vh;
+    max-width: 10vw;
+}
+
+.featured-game-screenshots:hover, .featured-video:hover {
+    max-height: 20vh;
+    max-width: 20vw;
+}
+
+.featured-video {
+    max-height: 20vh;
+    max-width: 20vw;
+}
+
+.hero-image-card {
+    background-color: grey !important;
+/*    z-index: 1;*/
+}
+
+/* Hide overlay at first */
+.card-img-overlay {
+    visibility: hidden !important;
+}
+
+/* When over hero image card show the overlay */
+.hero-image-card:hover > .card-img-overlay {
+    visibility: visible !important;
+    background-color: #0f4c75b0 !important;
+    color: #BBE1FA !important;
+
+/*    z-index: 0;*/
+}
+
+/* .hero-image-container:hover {*/
+/*    background-color: #2c74b34c !important;*/
+/*}*/
+
+
+/*.card-img-overlay:hover  {*/
+/*    visibility: hidden !important;*/
+/*    background-color: #bbe1fa7e !important;*/
+
+/*}*/
+
+.hero-header {
+    margin-top: 15vh;
+}
+
+.hero-header-container {
+/*    background-color: #0F4C75 !important;*/
+}
+
+.hero-sub-header {
+    z-index: 1;
+    display: block;
+}
+
+.card-title {
+    background-color: #0F4C75 !important;
+}
+
+.oxanium-c {
+  font-family: "Oxanium", sans-serif;
+  font-optical-sizing: auto;
+  font-weight: 10;
+  font-style: normal;
+}

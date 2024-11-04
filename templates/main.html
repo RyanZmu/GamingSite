@@ -1,0 +1,280 @@
+{% extends 'base.html' %}
+
+{% block title %}
+Home
+{% endblock %}
+
+{% block content %}
+
+<!-- Alerts -->
+{% with messages = get_flashed_messages() %}
+    {% if messages %}
+        {% for message in messages %}
+            <div class="alert alert-primary d-flex justify-content-between sticky-top" role="alert">
+              {{ message }}
+              <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
+            </div>
+        {% endfor %}
+    {% endif %}
+{% endwith %}
+
+<!--Site Banner-->
+<div class="container-fluid hero-container d-flex justify-content-evenly p-1">
+    <section class="hero-header-container">
+    <h1 class="oxanium-c hero-header">Your Place To Find Great Games! <br>&<br> <em>Keep Track of The Games You Want To Play</em></h1>
+    </section>
+    <div class="col-lg-4 col-sm-6 hero-image-container">
+     <div class="card text-bg-dark hero-image-card overflow-scroll">
+      <img src="https://images.igdb.com/igdb/image/upload/t_cover_big_2x/{{random_games[10]['cover']['image_id']}}.jpg" class="card-img hero-game-image" alt="...">
+      <div class="card-img-overlay overflow-scroll">
+        <h5 class="card-title">
+            Featured Game: <em>{{ random_games[10]["name"] }}
+            ({{ random_games[10]["release_dates"][0]["y"] }})
+            {% for platform in random_games[10]["platforms"] %}{{ platform['abbreviation'] }} {% endfor %}
+            </em>
+        </h5>
+        <p class="card-text">{{ random_games[10]["summary"] }}</p>
+        <!-- Screenshots -->
+        <p class="card-text"><strong>Screenshots</strong></p>
+          {% if random_games[10]["screenshots"] | length > 0 %}
+            {% for screenshot in random_games[10]["screenshots"] %}
+                    <img src="https://images.igdb.com/igdb/image/upload/t_screenshot_med/{{ screenshot.image_id }}.jpg" class="card-img featured-game-screenshots">
+            {% endfor %}
+          {% else %}
+            <p>No Screenshots provided</p>
+          {% endif %}
+        <!-- Video -->
+          <p class="card-text"><strong>Videos</strong></p>
+          {% if random_games[10]["videos"] | length > 0 %}
+                {% for video in random_games[10]["videos"] %}
+                    <iframe src="https://www.youtube.com/embed/{{ video['video_id'] }}" class="featured-video card-img" width="853" height="480" frameborder="0" allowfullscreen></iframe>
+                {% endfor %}
+          {% else %}
+            <p>No Videos Provided</p>
+          {% endif %}
+      </div>
+    </div>
+    </div>
+</div>
+
+
+<!--TODO: Consider making the cards a template file instead of reusing them over and over again in each row-->
+<!--One container with multiple columns to align-->
+<div class="container-fluid games-container overflow-x-hidden">
+
+
+ <div class="row row-cols-2">
+        <!--Must Play Section-->
+  <div class="col-2">
+    <h4 class="main-header m-2">Must Play Titles </h4>
+        <ul>
+         {% if top_games | length > 1 %}
+            {% for game in top_games %}
+                <li>
+                    <div class="must-play-list-item d-flex justify-content-between align-items-center p-3">
+                        <a href="{{ game['url'] }}" target="_blank" class=""><strong>{{ game["name"] }}</strong> <br> ({{ game["release_dates"][0]["human"] }})</a>
+                        <img src="https://images.igdb.com/igdb/image/upload/t_cover_small/{{game['cover']['image_id']}}.jpg" alt="game cover">
+                        </div>
+                    </li>
+                {% endfor %}
+            {% endif %}
+        </ul>
+    </div>
+<!-- </div>-->
+
+
+    <!--  User Tracked Games  -->
+ <div class="col-10">
+   <div class="row">
+    {% if current_user.is_authenticated %}
+     <h1 class="main-header"><strong>{{ current_user.username | upper}}'s</strong> Followed Games </h1> <hr>
+    {% endif %}
+    <div class="d-flex flex-row overflow-x-scroll">
+        {% if current_user.is_authenticated %}
+            {% if current_user.saved_game_data["game_data"] | length > 0 %}
+                {% for game in current_user.saved_game_data["game_data"] %}
+                    <div class="col-lg-2 col-md-2 col-sm-4 card m-2 featured-card wrap overflow-scroll p-2">
+                        {% if current_user.user_games_saved["added_games"] is defined and game["id"] in current_user.user_games_saved["added_games"] %}
+                            <a type="remove_button" class="btn btn-danger sticky-top" data-bs-toggle="remove_button" href="{{ url_for('home') }}">Remove Game -</a>
+                        {% endif %}
+
+                        {% if game["cover"] is defined %}
+                            <img class="card-img" src="https://images.igdb.com/igdb/image/upload/t_cover_big/{{game['cover']['image_id']}}.jpg" alt="game cover">
+                        {% else %}
+                            <img class="card-img" src="../static/images/controller_favicon.png">
+                        {% endif %}
+
+                            <p class="card-title m-2">
+                                <a href="{{ game['url'] }}" target="_blank" style="text-decoration:none; color:#BBE1FA;">
+                                    <strong class="m-0 p-0">{{ game["name"] }}</strong>
+                                    <br>
+                                    {% if game["release_dates"] is defined %} ({{ game["release_dates"][0]["human"] }}) {% endif %}
+                                </a>
+                                <br>
+                                {% if game["aggregated_rating"] is defined %}
+                                <strong>
+                                    {% set rating = game["aggregated_rating"] / 10.00 | round(0, 'floor') | float %}
+                                     {{ rating }}
+                                    {% if rating >= 9.0 and rating <= 10.0 %}
+                                        ★ ★ ★ ★ ★
+                                    {% elif rating >= 8.0 and rating < 9.0 %}
+                                        ★ ★ ★ ★ ☆
+                                    {% elif rating >= 6.5 and rating < 8.0  %}
+                                        ★ ★ ★ ☆ ☆
+                                    {% elif rating >= 5.0 and rating < 6.5  %}
+                                        ★ ★ ☆ ☆ ☆
+                                    {% else %}
+                                        ★ ☆ ☆ ☆ ☆
+
+                                    {% endif %}
+                                    <br> Ratings Count: {{ game["total_rating_count"] }}
+                                </strong>
+                                {% else %}
+                                <strong><em>No Ratings Yet</em></strong>
+                                {% endif %}
+                                <br>
+
+                            <!--Get Platforms-->
+                            {% for platform in game.platforms %}
+                                {{ platform.abbreviation }}
+                            {% endfor %}
+
+                            </p>
+                            <p class="card-body">
+                                {{ game["summary"]}}
+                            </p>
+                    </div>
+                {% endfor %}
+            {% endif %}
+        {% endif %}
+        </div>
+    </div>
+<!--</div>-->
+
+<!--<div class="row ">-->
+    <div class="col">
+    <!-- Discover section -->
+    <h1 class="main-header">Discover a New Favorite Game!</h1>
+    <h4 class="main-sub-header"><em>Games That Other Players Love - Old and New</em></h4><hr>
+    <div class="btn-group">
+        <!-- Refresh game list button -->
+        <a href="{{ url_for('update_api_data') }}"><button class="btn btn-success m-2">Get New Games</button></a>
+
+        <!-- Filter dropdown list -->
+        <div class="dropdown d-block discover-filter">
+            <button class="btn btn-primary dropdown-toggle m-2" type="button" data-bs-toggle="dropdown">Filter</button>
+            <ul class="dropdown-menu">
+                <li>
+                    <div class="dropdown-item platform-dropdown"></div>
+                    <button class="btn dropdown-toggle" type="button" data-bs-toggle="platform-dropdown">Platform</button>
+                    <ul class="dropdown-menu">
+                        <li><a class="dropdown-item">Playstation 4</a></li>
+                    </ul>
+                </li>
+            </ul>
+        </div>
+      </div>
+
+
+
+    <!--Feature Games column-->
+    <div class="featured-games-row d-flex flex-row overflow-x-scroll">
+        {% for game in random_games %}
+            <div class="col-lg-2 col-md-2 col-sm-4 card m-2 featured-card wrap overflow-scroll p-2">
+                {% if current_user.user_games_saved is defined and game["id"] not in current_user.user_games_saved["added_games"] %}
+                    <a type="add_button" class="btn btn-success sticky-top" data-bs-toggle="add_button" href="{{ url_for('add_game', game_id=game['id']) }}">Add Game +</a>
+                {% elif current_user.user_games_saved is defined and game["id"] in current_user.user_games_saved["added_games"] %}
+                    <a type="button" class="btn btn-secondary sticky-top" aria-disabled="true" data-bs-toggle="button" href="{{ url_for('add_game', game_id=game['id']) }}">Game Added</a>
+                {% else %}
+                    <a type="add_button" class="btn btn-success sticky-top" data-bs-toggle="add_button" href="{{ url_for('login') }}">Log in to Add Game</a>
+                {% endif %}
+                {% if game["cover"] is defined %}
+                <img class="card-image" src="https://images.igdb.com/igdb/image/upload/t_cover_big/{{game['cover']['image_id']}}.jpg" alt="game cover">
+                {% else %}
+                <img class="card-img" src="../static/images/controller_favicon.png">
+                {% endif %}
+
+                    <p class="card-title m-2">
+                        <a href="{{ game['url'] }}" target="_blank" style="text-decoration:none; color:#BBE1FA;">
+                            <strong class="m-0 p-0">{{ game["name"] }}</strong>
+                            <br>
+                            {% if game["release_dates"] is defined %} ({{ game["release_dates"][0]["human"] }}) {% endif %}
+                        </a>
+                        <br>
+                        {% if game["aggregated_rating"] is defined %}
+                        <strong>
+                            {% set rating = game["aggregated_rating"] / 10.00 | round(0, 'floor') | float %}
+                             {{ rating }}
+                            {% if rating >= 9.0 and rating <= 10.0 %}
+                                ★ ★ ★ ★ ★
+                            {% elif rating >= 8.0 and rating < 9.0 %}
+                                ★ ★ ★ ★ ☆
+                            {% elif rating >= 6.5 and rating < 8.0  %}
+                                ★ ★ ★ ☆ ☆
+                            {% elif rating >= 5.0 and rating < 6.5  %}
+                                ★ ★ ☆ ☆ ☆
+                            {% else %}
+                                ★ ☆ ☆ ☆ ☆
+
+                            {% endif %}
+                            <br> Ratings Count: {{ game["total_rating_count"] }}
+                        </strong>
+                        {% else %}
+                        <strong><em>No Ratings Yet</em></strong>
+                        {% endif %}
+                        <br>
+
+                    <!--Get Platforms-->
+                    {% for platform in game.platforms %}
+                        {{ platform.abbreviation }}
+                    {% endfor %}
+
+                    </p>
+                    <p class="card-body">
+                        {{ game["summary"]}}
+                    </p>
+            </div>
+        {% endfor %}
+    </div>
+</div>
+
+<!--<div class="row">-->
+    <div class="col">
+    <!--  Upcoming Games column -->
+    <h1 class="main-header">Coming Out Soon</h1>
+        <hr>
+    <div class="d-flex flex-row nowrap overflow-x-scroll">
+        {% for game in upcoming_games %}
+            {% if game["game"] is defined and game['game']['release_dates'][0]['human'] | int >= 2024 %}
+                <div class="col-lg-2 col-md-2 col-sm-4 card m-2 featured-card wrap overflow-scroll p-2">
+                    <button class="btn btn-success sticky-top">Track Game +</button>
+                    {% if game["game"]["cover"] is defined %}
+                    <img class="card-image" src="https://images.igdb.com/igdb/image/upload/t_cover_big/{{game['game']['cover']['image_id']}}.jpg" alt="game cover">
+                    {% endif %}
+
+                        <p class="card-title m-2">
+                            <a href="{{ game['game']['url'] }}" target="_blank" style="text-decoration:none; color:#BBE1FA;">{{ game["game"]["name"] }}</a>
+                            <br>
+                            Coming Out: {{game['game']['release_dates'][0]['m']}}/{{ game['game']['release_dates'][0]['y'] }}
+                            <br><br>
+                            {{ game["game"]["summary"] }}
+
+                        <!--Get Platforms-->
+                        {% for platform in game.platforms %}
+                            {{ platform.abbreviation }}
+                        {% endfor %}
+
+                         </p>
+                            <p class="card-body">
+                                {{ game["summary"]}}
+                            </p>
+                        </div>
+                    {% endif %}
+                {% endfor %}
+            </div>
+        </div>
+        </div>
+    </div>
+</div>
+
+{% endblock %}

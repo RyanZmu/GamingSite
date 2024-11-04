@@ -1,0 +1,32 @@
+{% extends 'base.html' %}
+{% from 'bootstrap5/form.html' import render_form %}
+
+{% block content %}
+{% with messages = get_flashed_messages() %}
+  {% if messages %}
+    {% for message in messages %}
+        <div class="alert alert-danger d-flex justify-content-between" role="alert">
+          {{ message }}
+          <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
+        </div>
+    {% endfor %}
+  {% endif %}
+{% endwith %}
+
+    <!--Register Form-->
+  {% if request.path == '/register' %}
+    <div class="container-fluid d-flex flex-column align-items-center">
+      <h1>Register Below</h1>
+       {{ render_form(form) }}
+    </div>
+  {% endif %}
+
+    <!--Login Form-->
+  {% if request.path == '/login' %}
+    <div class="container-fluid d-flex flex-column align-items-center">
+      <h1>Login Below</h1>
+       {{ render_form(form) }}
+    </div>
+  {% endif %}
+
+{% endblock %}
