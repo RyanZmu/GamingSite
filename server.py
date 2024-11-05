@@ -72,7 +72,7 @@ login_manager.init_app(app)
 def igdb_api(**kwargs):
     print("api called")
     # Default limit api call to 30 items, override with kwargs
-    limit = 200
+    limit = 100
 
     igdb_endpoint = "https://api.igdb.com/v4"
 

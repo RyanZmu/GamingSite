@@ -170,10 +170,13 @@ Home
     <h4 class="main-sub-header"><em>Games That Other Players Love - Old and New</em></h4><hr>
     <div class="btn-group">
         <!-- Refresh game list button -->
-        <a href="{{ url_for('update_api_data') }}"><button class="btn btn-success m-2" type="button">Get New Games</button></a>
-        <div class="spinner-border" role="status">
-          <span class="visually-hidden">Loading...</span>
-        </div>
+        <a href="{{ url_for('update_api_data') }}"><button class="btn btn-success m-2" id="newGames" type="button">Get New Games</button></a>
+
+        <!-- Loading Spinner -->
+        <div class="spinner-border" role="status" id="spinner" style="visibility:hidden; display:none;">
+                      <span class="visually-hidden" >Loading...</span>
+                    </div>
+
         <!-- Filter dropdown list -->
         <div class="dropdown d-block discover-filter">
             <button class="btn btn-primary dropdown-toggle m-2" type="button" data-bs-toggle="dropdown">Discover</button>
@@ -304,5 +307,14 @@ Home
         </div>
     </div>
 </div>
+{% endblock %}
 
+{% block scripts %}
+    <!--JS Click event for loading-->
+    <script>
+            document.getElementById("newGames").onclick = function() {
+                document.getElementById("spinner").style.visibility = "visible";
+                document.getElementById("spinner").style.display = "block";
+            }
+    </script>
 {% endblock %}
