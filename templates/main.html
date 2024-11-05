@@ -307,14 +307,17 @@ Home
         </div>
     </div>
 </div>
+
+<!-- JS Functions -->
+
+<!--Click event for loading spinners -->
+<script>
+        document.getElementById("newGames").onclick = function() {
+            document.getElementById("spinner").style.visibility = "visible";
+            document.getElementById("spinner").style.display = "block";
+        }
+
+</script>
 {% endblock %}
 
-{% block scripts %}
-    <!--JS Click event for loading-->
-    <script>
-            document.getElementById("newGames").onclick = function() {
-                document.getElementById("spinner").style.visibility = "visible";
-                document.getElementById("spinner").style.display = "block";
-            }
-    </script>
-{% endblock %}
+
