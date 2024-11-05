@@ -25,19 +25,22 @@ Home
     </section>
     <div class="col-lg-4 col-sm-6 hero-image-container">
      <div class="card text-bg-dark hero-image-card overflow-scroll">
-      <img src="https://images.igdb.com/igdb/image/upload/t_cover_big_2x/{{random_games[10]['cover']['image_id']}}.jpg" class="card-img hero-game-image" alt="...">
+      <img src="https://images.igdb.com/igdb/image/upload/t_cover_big_2x/{{random_games[random_number]['cover']['image_id']}}.jpg" class="card-img hero-game-image" alt="...">
       <div class="card-img-overlay overflow-scroll">
         <h5 class="card-title">
-            Featured Game: <em>{{ random_games[10]["name"] }}
-            ({{ random_games[10]["release_dates"][0]["y"] }})
-            {% for platform in random_games[10]["platforms"] %}{{ platform['abbreviation'] }} {% endfor %}
+            Featured Game:
+            <a href="{{ random_games[random_number]['url'] }}" style="text-decoration: none; color: #BBE1FA;">
+            <em>{{ random_games[random_number]["name"] }}
+            ({{ random_games[random_number]["release_dates"][0]["y"] }})
+            {% for platform in random_games[random_number]["platforms"] %}{{ platform['abbreviation'] }} {% endfor %}
             </em>
+            </a>
         </h5>
-        <p class="card-text">{{ random_games[10]["summary"] }}</p>
+        <p class="card-text">{{ random_games[random_number]["summary"] }}</p>
         <!-- Screenshots -->
         <p class="card-text"><strong>Screenshots</strong></p>
-          {% if random_games[10]["screenshots"] | length > 0 %}
-            {% for screenshot in random_games[10]["screenshots"] %}
+          {% if random_games[random_number]["screenshots"] | length > 0 %}
+            {% for screenshot in random_games[random_number]["screenshots"] %}
                     <img src="https://images.igdb.com/igdb/image/upload/t_screenshot_med/{{ screenshot.image_id }}.jpg" class="card-img featured-game-screenshots">
             {% endfor %}
           {% else %}
@@ -45,8 +48,8 @@ Home
           {% endif %}
         <!-- Video -->
           <p class="card-text"><strong>Videos</strong></p>
-          {% if random_games[10]["videos"] | length > 0 %}
-                {% for video in random_games[10]["videos"] %}
+          {% if random_games[random_number]["videos"] | length > 0 %}
+                {% for video in random_games[random_number]["videos"] %}
                     <iframe src="https://www.youtube.com/embed/{{ video['video_id'] }}" class="featured-video card-img" width="853" height="480" frameborder="0" allowfullscreen></iframe>
                 {% endfor %}
           {% else %}
@@ -64,7 +67,7 @@ Home
 
 
  <div class="row row-cols-2">
-        <!--Must Play Section-->
+ <!--Must Play Section-->
   <div class="col-2">
     <h4 class="main-header m-2">Must Play Titles </h4>
         <ul>
@@ -83,7 +86,7 @@ Home
 <!-- </div>-->
 
 
-    <!--  User Tracked Games  -->
+<!--  User Tracked Games  -->
  <div class="col-10">
    <div class="row">
     {% if current_user.is_authenticated %}
@@ -143,13 +146,22 @@ Home
                             <p class="card-body">
                                 {{ game["summary"]}}
                             </p>
+
+                          <!-- Screenshots -->
+                          <p class="card-text"><strong>Screenshots</strong></p>
+                          {% if game["screenshots"] | length > 0 %}
+                            {% for screenshot in game["screenshots"] %}
+                              <img src="https://images.igdb.com/igdb/image/upload/t_screenshot_med/{{ screenshot.image_id }}.jpg" class="card-img featured-game-screenshots">
+                            {% endfor %}
+                          {% else %}
+                            <p>No Screenshots provided</p>
+                          {% endif %}
                     </div>
                 {% endfor %}
             {% endif %}
         {% endif %}
         </div>
     </div>
-<!--</div>-->
 
 <!--<div class="row ">-->
     <div class="col">
@@ -158,11 +170,13 @@ Home
     <h4 class="main-sub-header"><em>Games That Other Players Love - Old and New</em></h4><hr>
     <div class="btn-group">
         <!-- Refresh game list button -->
-        <a href="{{ url_for('update_api_data') }}"><button class="btn btn-success m-2">Get New Games</button></a>
-
+        <a href="{{ url_for('update_api_data') }}"><button class="btn btn-success m-2" type="button">Get New Games</button></a>
+        <div class="spinner-border" role="status">
+          <span class="visually-hidden">Loading...</span>
+        </div>
         <!-- Filter dropdown list -->
         <div class="dropdown d-block discover-filter">
-            <button class="btn btn-primary dropdown-toggle m-2" type="button" data-bs-toggle="dropdown">Filter</button>
+            <button class="btn btn-primary dropdown-toggle m-2" type="button" data-bs-toggle="dropdown">Discover</button>
             <ul class="dropdown-menu">
                 <li>
                     <div class="dropdown-item platform-dropdown"></div>
@@ -175,12 +189,11 @@ Home
         </div>
       </div>
 
-
-
-    <!--Feature Games column-->
+<!--Feature Games column-->
     <div class="featured-games-row d-flex flex-row overflow-x-scroll">
         {% for game in random_games %}
             <div class="col-lg-2 col-md-2 col-sm-4 card m-2 featured-card wrap overflow-scroll p-2">
+                <!-- Add game button -->
                 {% if current_user.user_games_saved is defined and game["id"] not in current_user.user_games_saved["added_games"] %}
                     <a type="add_button" class="btn btn-success sticky-top" data-bs-toggle="add_button" href="{{ url_for('add_game', game_id=game['id']) }}">Add Game +</a>
                 {% elif current_user.user_games_saved is defined and game["id"] in current_user.user_games_saved["added_games"] %}
@@ -188,6 +201,7 @@ Home
                 {% else %}
                     <a type="add_button" class="btn btn-success sticky-top" data-bs-toggle="add_button" href="{{ url_for('login') }}">Log in to Add Game</a>
                 {% endif %}
+
                 {% if game["cover"] is defined %}
                 <img class="card-image" src="https://images.igdb.com/igdb/image/upload/t_cover_big/{{game['cover']['image_id']}}.jpg" alt="game cover">
                 {% else %}
@@ -233,6 +247,16 @@ Home
                     <p class="card-body">
                         {{ game["summary"]}}
                     </p>
+
+                  <!-- Screenshots -->
+                  <p class="card-text"><strong>Screenshots</strong></p>
+                  {% if game["screenshots"] | length > 0 %}
+                    {% for screenshot in game["screenshots"] %}
+                      <img src="https://images.igdb.com/igdb/image/upload/t_screenshot_med/{{ screenshot.image_id }}.jpg" class="card-img featured-game-screenshots">
+                    {% endfor %}
+                  {% else %}
+                    <p>No Screenshots provided</p>
+                  {% endif %}
             </div>
         {% endfor %}
     </div>
@@ -245,7 +269,9 @@ Home
         <hr>
     <div class="d-flex flex-row nowrap overflow-x-scroll">
         {% for game in upcoming_games %}
-            {% if game["game"] is defined and game['game']['release_dates'][0]['human'] | int >= 2024 %}
+            <!--use if statement as games will still sometimes populate without date and with dates before 2024-->
+            <!-- TODO remove the hardcoded dates at some point (hardcoded month in query) -->
+            {% if game["game"] is defined and game['game']['release_dates'][0]['y'] is defined and game['game']['release_dates'][0]['y'] | int >= 2024  %}
                 <div class="col-lg-2 col-md-2 col-sm-4 card m-2 featured-card wrap overflow-scroll p-2">
                     <button class="btn btn-success sticky-top">Track Game +</button>
                     {% if game["game"]["cover"] is defined %}

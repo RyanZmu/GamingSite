@@ -69,21 +69,19 @@ bootstrap = Bootstrap5(app)
 login_manager = LoginManager()
 login_manager.init_app(app)
 
-def get_twitch_token():
-    token_request = requests.post(f"https://id.twitch.tv/oauth2/token?client_id={TWITCH_CLIENT}"
-                                  f"&client_secret={TWITCH_SECRET}&grant_type=client_credentials")
-
-    token = token_request.json()["access_token"]
-    return token
-
-
 def igdb_api(**kwargs):
     print("api called")
     # Default limit api call to 30 items, override with kwargs
-    limit = 100
+    limit = 150
 
     igdb_endpoint = "https://api.igdb.com/v4"
-    token = get_twitch_token()
+
+    # Get token from Twitch
+    # TODO Change logic so a token is requested only when expired - maybe move back into its own function
+    token_request = requests.post(f"https://id.twitch.tv/oauth2/token?client_id={TWITCH_CLIENT}"
+                                  f"&client_secret={TWITCH_SECRET}&grant_type=client_credentials")
+    print(token_request.json())
+    token = token_request.json()["access_token"]
 
     headers = {
         "Client-ID": TWITCH_CLIENT,
@@ -138,7 +136,7 @@ def igdb_api(**kwargs):
     igdb_request = requests.post(
         url=f"{igdb_endpoint}/games",
         headers=headers,
-        data=f"fields *, cover.*, platforms.*, release_dates.*, screenshots.*, videos.*, genres.*; sort aggregated_rating; where aggregated_rating >= {randint(65, 100)}; limit {limit};")
+        data=f"fields *, cover.*, platforms.*, release_dates.*, screenshots.*, videos.*, genres.*; sort date desc; where aggregated_rating >= {randint(65, 100)} & rating_count > 30; limit {limit};")
     igdb_random_data = igdb_request.json()
     # print(igdb_random_data)
 
@@ -146,12 +144,25 @@ def igdb_api(**kwargs):
     current_year = str(datetime.year)
     # print({"current_year": current_year})
 
+    # TODO WOrk on getting more relevant new releases to display and no duplicates
     igdb_upcoming_request = requests.post(
         url=f"{igdb_endpoint}/release_dates",
         headers=headers,
-        data=f"fields *, game.*, game.cover.*, game.release_dates.*; where game.release_dates.human = ('2024')"
-             f";limit {limit}; sort date desc;")
+        data=f"fields *, game.*, game.cover.*, game.release_dates.*; where y >= 2024 & game.hypes > 10 & m >= 11; limit 150; sort date asc;")
     igdb_upcoming_data = igdb_upcoming_request.json()
+
+    # Remove duplicate games from the upcoming game data
+    current_game_name = ""
+    filtered_upcoming_data = []
+    for game in igdb_upcoming_data:
+        print(game['game']['name'])
+
+        if game['game']['name'] != current_game_name:
+            current_game_name = game['game']['name']
+            filtered_upcoming_data.append(game)
+            print(current_game_name)
+
+    # print(filtered_upcoming_data)
 
 
     # Get Top 10 most popular games
@@ -167,7 +178,7 @@ def igdb_api(**kwargs):
     igdb_queries = {
         "igdb_top": igdb_top_data,
         "igdb_random": igdb_random_data,
-        "igdb_upcoming": igdb_upcoming_data
+        "igdb_upcoming": filtered_upcoming_data
     }
 
     data = IGDBData(
@@ -282,9 +293,9 @@ def home():
 
     for game in game_data:
         igdb_calls = {
-            "igdb_top":game.game["igdb_top"],
-            "igdb_random":game.game["igdb_random"],
-            "igdb_upcoming":game.game["igdb_upcoming"]
+            "igdb_top": game.game["igdb_top"],
+            "igdb_random": game.game["igdb_random"],
+            "igdb_upcoming": game.game["igdb_upcoming"]
         }
 
     # Get 10 random games to display on homepage for users to check out
@@ -296,19 +307,12 @@ def home():
     # print(upcoming_games)
 
     top_games = igdb_calls["igdb_top"]
+    print(time.time())
 
-    user_games = {}
-    # If user is logged in, get user's games
-    # if current_user.is_authenticated:
-        # user_games = db.session.execute(db.select(User.saved_game_data).where(User.id == current_user.id)).scalar()
-        # print("Get user's games")
-        # game_list = db.session.execute(db.select(User.user_games_saved).where(User.id == current_user.id)).scalar()
-        # print(game_list)
-
-        # TODO: Possibly move this data into the DB to avoid unneeded api calls from /home
-        # TODO: Ideally sort DB info for games and have a relation to the game db from the user db - parse api calls
-        # Do an API call to just update user's games using Kwargs
-        # user_games = igdb_api(request_type="user_games", game_ids=game_list)
+    # TODO: Possibly move this data into the DB to avoid unneeded api calls from /home
+    # TODO: Ideally sort DB info for games and have a relation to the game db from the user db - parse api calls
+    # Do an API call to just update user's games using Kwargs
+    # user_games = igdb_api(request_type="user_games", game_ids=game_list)
 
     return render_template(
         template_name_or_list="main.html",
@@ -318,6 +322,7 @@ def home():
         api_call=igdb_api,
         date=datetime.now(),
         add_game=add_game,
+        random_number=randint(10, len(random_games)-1)
     )
 
 # Use this route to let the user Update the games shown and eventually set API update intervals
@@ -338,9 +343,9 @@ def add_game(game_id):
 
     # Update the list if game is not already in list
     # Update added_games with ID
-    # TODO: Disable the Add Game button if a game_id is in the the user's library
     if game_id not in game_list["added_games"]:
         game_list["added_games"].append(int(game_id))
+        # TODO: Change this flash to display game names instead of ID numbers
         flash(f"{game_id} added to library")
 
         # Add the updated list to the DB and commit
