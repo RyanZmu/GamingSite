@@ -65,7 +65,6 @@ Home
 <!--One container with multiple columns to align-->
 <div class="container-fluid games-container overflow-x-hidden">
 
-
  <div class="row row-cols-2">
  <!--Must Play Section-->
   <div class="col-2">
@@ -83,8 +82,6 @@ Home
             {% endif %}
         </ul>
     </div>
-<!-- </div>-->
-
 
 <!--  User Tracked Games  -->
  <div class="col-10">
@@ -163,9 +160,8 @@ Home
         </div>
     </div>
 
-<!--<div class="row ">-->
-    <div class="col">
     <!-- Discover section -->
+    <div class="col">
     <h1 class="main-header">Discover a New Favorite Game!</h1>
     <h4 class="main-sub-header"><em>Games That Other Players Love - Old and New</em></h4><hr>
     <div class="btn-group">
@@ -192,7 +188,7 @@ Home
         </div>
       </div>
 
-<!--Feature Games column-->
+    <!--Featured Games -->
     <div class="featured-games-row d-flex flex-row overflow-x-scroll">
         {% for game in random_games %}
             <div class="col-lg-2 col-md-2 col-sm-4 card m-2 featured-card wrap overflow-scroll p-2">
@@ -265,9 +261,8 @@ Home
     </div>
 </div>
 
-<!--<div class="row">-->
+    <!-- Upcoming Games -->
     <div class="col">
-    <!--  Upcoming Games column -->
     <h1 class="main-header">Upcoming Highly Anticipated Releases</h1>
         <hr>
     <div class="d-flex flex-row nowrap overflow-x-scroll">
