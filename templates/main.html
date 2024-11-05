@@ -265,13 +265,14 @@ Home
 <!--<div class="row">-->
     <div class="col">
     <!--  Upcoming Games column -->
-    <h1 class="main-header">Coming Out Soon</h1>
+    <h1 class="main-header">Upcoming Highly Anticipated Releases</h1>
         <hr>
     <div class="d-flex flex-row nowrap overflow-x-scroll">
         {% for game in upcoming_games %}
             <!--use if statement as games will still sometimes populate without date and with dates before 2024-->
             <!-- TODO remove the hardcoded dates at some point (hardcoded month in query) -->
-            {% if game["game"] is defined and game['game']['release_dates'][0]['y'] is defined and game['game']['release_dates'][0]['y'] | int >= 2024  %}
+            {% if game["game"] and game["game"]["release_dates"][0]['y'] is defined %}
+                {% if game["game"]["release_dates"][0]['y'] >= 2024 %}
                 <div class="col-lg-2 col-md-2 col-sm-4 card m-2 featured-card wrap overflow-scroll p-2">
                     <button class="btn btn-success sticky-top">Track Game +</button>
                     {% if game["game"]["cover"] is defined %}
@@ -295,6 +296,7 @@ Home
                                 {{ game["summary"]}}
                             </p>
                         </div>
+                        {% endif %}
                     {% endif %}
                 {% endfor %}
             </div>

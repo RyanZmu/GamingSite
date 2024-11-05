@@ -72,7 +72,7 @@ login_manager.init_app(app)
 def igdb_api(**kwargs):
     print("api called")
     # Default limit api call to 30 items, override with kwargs
-    limit = 150
+    limit = 200
 
     igdb_endpoint = "https://api.igdb.com/v4"
 
@@ -136,9 +136,9 @@ def igdb_api(**kwargs):
     igdb_request = requests.post(
         url=f"{igdb_endpoint}/games",
         headers=headers,
-        data=f"fields *, cover.*, platforms.*, release_dates.*, screenshots.*, videos.*, genres.*; sort date desc; where aggregated_rating >= {randint(65, 100)} & rating_count > 30; limit {limit};")
+        data=f"fields *, cover.*, platforms.*, release_dates.*, screenshots.*, videos.*, genres.*; where rating > {randint(60, 70)} & rating < {randint(80, 100)}; limit {limit}; sort rating desc;")
     igdb_random_data = igdb_request.json()
-    # print(igdb_random_data)
+    print(igdb_random_data)
 
     # Get Upcoming games
     current_year = str(datetime.year)
@@ -148,8 +148,9 @@ def igdb_api(**kwargs):
     igdb_upcoming_request = requests.post(
         url=f"{igdb_endpoint}/release_dates",
         headers=headers,
-        data=f"fields *, game.*, game.cover.*, game.release_dates.*; where y >= 2024 & game.hypes > 10 & m >= 11; limit 150; sort date asc;")
+        data=f"fields *, game.*, game.cover.*, game.release_dates.*; where y = 2024 & m=(11,12) & game.hypes >= 20; limit 100; sort date asc;")
     igdb_upcoming_data = igdb_upcoming_request.json()
+    # print(igdb_upcoming_data)
 
     # Remove duplicate games from the upcoming game data
     current_game_name = ""
@@ -162,7 +163,6 @@ def igdb_api(**kwargs):
             filtered_upcoming_data.append(game)
             print(current_game_name)
 
-    # print(filtered_upcoming_data)
 
 
     # Get Top 10 most popular games
@@ -321,8 +321,9 @@ def home():
         top_games=top_games,
         api_call=igdb_api,
         date=datetime.now(),
+        time=time.time(),
         add_game=add_game,
-        random_number=randint(10, len(random_games)-1)
+        random_number=randint(0, len(random_games)-1)
     )
 
 # Use this route to let the user Update the games shown and eventually set API update intervals
