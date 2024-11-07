@@ -1,4 +1,6 @@
 {% extends 'base.html' %}
+{% from 'bootstrap5/form.html' import render_form %}
+
 
 {% block title %}
 Home
@@ -31,8 +33,8 @@ Home
             Featured Game:
             <a href="{{ random_games[random_number]['url'] }}" style="text-decoration: none; color: #BBE1FA;">
             <em>{{ random_games[random_number]["name"] }}
-            ({{ random_games[random_number]["release_dates"][0]["y"] }})
-            {% for platform in random_games[random_number]["platforms"] %}{{ platform['abbreviation'] }} {% endfor %}
+            ({% if random_games[random_number]["release_dates"] is defined %} {{ random_games[random_number]["release_dates"][0]["y"] }} {% endif %}
+            {% for platform in random_games[random_number]["platforms"] %} {{ platform['abbreviation'] }} {% endfor %}
             </em>
             </a>
         </h5>
@@ -41,7 +43,7 @@ Home
         <p class="card-text"><strong>Screenshots</strong></p>
           {% if random_games[random_number]["screenshots"] | length > 0 %}
             {% for screenshot in random_games[random_number]["screenshots"] %}
-                    <img src="https://images.igdb.com/igdb/image/upload/t_screenshot_med/{{ screenshot.image_id }}.jpg" class="card-img featured-game-screenshots">
+                    <img src="https://images.igdb.com/igdb/image/upload/t_screenshot_med/{{ screenshot.image_id }}.jpg" class="card-img m-2 featured-game-screenshots">
             {% endfor %}
           {% else %}
             <p>No Screenshots provided</p>
@@ -50,7 +52,7 @@ Home
           <p class="card-text"><strong>Videos</strong></p>
           {% if random_games[random_number]["videos"] | length > 0 %}
                 {% for video in random_games[random_number]["videos"] %}
-                    <iframe src="https://www.youtube.com/embed/{{ video['video_id'] }}" class="featured-video card-img" width="853" height="480" frameborder="0" allowfullscreen></iframe>
+                    <iframe src="https://www.youtube.com/embed/{{ video['video_id'] }}" class="featured-video card-img m-2" width="853" height="480" frameborder="0" allowfullscreen></iframe>
                 {% endfor %}
           {% else %}
             <p>No Videos Provided</p>
@@ -111,10 +113,10 @@ Home
                                     {% if game["release_dates"] is defined %} ({{ game["release_dates"][0]["human"] }}) {% endif %}
                                 </a>
                                 <br>
-                                {% if game["aggregated_rating"] is defined %}
+                                {% if game["total_rating"] is defined %}
                                 <strong>
-                                    {% set rating = game["aggregated_rating"] / 10.00 | round(0, 'floor') | float %}
-                                     {{ rating }}
+                                    {% set rating = game["total_rating"] / 10.00 | round(0, 'floor') | float %}
+                                     {{ rating | round(1, 'floor') }}
                                     {% if rating >= 9.0 and rating <= 10.0 %}
                                         ★ ★ ★ ★ ★
                                     {% elif rating >= 8.0 and rating < 9.0 %}
@@ -148,7 +150,7 @@ Home
                           <p class="card-text"><strong>Screenshots</strong></p>
                           {% if game["screenshots"] | length > 0 %}
                             {% for screenshot in game["screenshots"] %}
-                              <img src="https://images.igdb.com/igdb/image/upload/t_screenshot_med/{{ screenshot.image_id }}.jpg" class="card-img featured-game-screenshots">
+                              <img src="https://images.igdb.com/igdb/image/upload/t_screenshot_med/{{ screenshot.image_id }}.jpg" class="card-img m-2 featured-game-screenshots">
                             {% endfor %}
                           {% else %}
                             <p>No Screenshots provided</p>
@@ -169,13 +171,23 @@ Home
         <a href="{{ url_for('update_api_data') }}"><button class="btn btn-success m-2" id="newGames" type="button">Get New Games</button></a>
 
         <!-- Loading Spinner -->
-        <div class="spinner-border" role="status" id="spinner" style="visibility:hidden; display:none;">
-                      <span class="visually-hidden" >Loading...</span>
-                    </div>
+        <div class="spinner-border" role="status" id="loadingSpinner" style="visibility:hidden; display:none;">
+            <span class="visually-hidden" >Loading...</span>
+        </div>
 
-        <!-- Filter dropdown list -->
+        <!-- Discover New Games Form/Section -->
+        <button class="btn btn-primary m-2" id="discoverBtn" type="button">Discover</button>
+        <div class="discovery-section" id="discoverSection" style="display:none;">
+            {{ render_form(form=discover_form, id="discovery") }}
+                    <!-- Loading Spinner -->
+        <div class="spinner-border" role="status" id="loadingSpinnerDiscover" style="visibility:hidden; display:none;">
+            <span class="visually-hidden" >Loading...</span>
+        </div>
+        </div>
+
+        <!-- Filter dropdown list - Use to sort and filter results -->
         <div class="dropdown d-block discover-filter">
-            <button class="btn btn-primary dropdown-toggle m-2" type="button" data-bs-toggle="dropdown">Discover</button>
+            <button class="btn btn-primary dropdown-toggle m-2" type="button" data-bs-toggle="dropdown">Filter</button>
             <ul class="dropdown-menu">
                 <li>
                     <div class="dropdown-item platform-dropdown"></div>
@@ -214,10 +226,11 @@ Home
                             {% if game["release_dates"] is defined %} ({{ game["release_dates"][0]["human"] }}) {% endif %}
                         </a>
                         <br>
-                        {% if game["aggregated_rating"] is defined %}
+                        {% if game["total_rating"] is defined %}
                         <strong>
-                            {% set rating = game["aggregated_rating"] / 10.00 | round(0, 'floor') | float %}
-                             {{ rating }}
+                            {% set rating = game["total_rating"] / 10.00 | round(0, 'floor') | float %}
+                            <!-- round again to get desired 0.0 ratings -->
+                             {{ rating | round(1, 'floor') }}
                             {% if rating >= 9.0 and rating <= 10.0 %}
                                 ★ ★ ★ ★ ★
                             {% elif rating >= 8.0 and rating < 9.0 %}
@@ -251,7 +264,7 @@ Home
                   <p class="card-text"><strong>Screenshots</strong></p>
                   {% if game["screenshots"] | length > 0 %}
                     {% for screenshot in game["screenshots"] %}
-                      <img src="https://images.igdb.com/igdb/image/upload/t_screenshot_med/{{ screenshot.image_id }}.jpg" class="card-img featured-game-screenshots">
+                      <img src="https://images.igdb.com/igdb/image/upload/t_screenshot_med/{{ screenshot.image_id }}.jpg" class="card-img m-2 featured-game-screenshots">
                     {% endfor %}
                   {% else %}
                     <p>No Screenshots provided</p>
@@ -302,17 +315,6 @@ Home
         </div>
     </div>
 </div>
-
-<!-- JS Functions -->
-
-<!--Click event for loading spinners -->
-<script>
-        document.getElementById("newGames").onclick = function() {
-            document.getElementById("spinner").style.visibility = "visible";
-            document.getElementById("spinner").style.display = "block";
-        }
-
-</script>
 {% endblock %}
 
 
