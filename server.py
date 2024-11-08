@@ -39,7 +39,7 @@ app.secret_key = os.environ.get("APP_SECRET_KEY")
 
 # Load DB
 app.config["SQLALCHEMY_DATABASE_URI"] = os.environ.get("DB_URI", "sqlite:///main.db")
-
+app.config['BOOTSTRAP_BOOTSWATCH_THEME'] = 'slate'
 # init app with extension
 db.init_app(app)
 
@@ -57,7 +57,7 @@ login_manager.init_app(app)
 def igdb_api(**kwargs):
     print("api called")
     # Default limit for api call, override with kwargs
-    limit = 100
+    limit = 200
 
     igdb_endpoint = "https://api.igdb.com/v4"
 
@@ -79,9 +79,9 @@ def igdb_api(**kwargs):
         # limit = kwargs["limit"]
         request_type = kwargs["request_type"]
 
-        # TODO: Cache game data because I can only call 10 id's at a time (maybe break up requests into batches)
-        # TODO: Add a column called user_game_data and when a user adds a game,
-        # TODO: call the api with the id and add it's data to the column's row - {"game_data": data}
+        # TODO Fix this so when a user adds a game, we just pass the data from the DB games table to the user table
+        # TODO and add the game data this way there is no need for an api as the data will be saved always
+        # TODO Remove this API call after doing the above!
         # Just call API and get user's games info after adding new ones
         if request_type == "user_games":
             game_ids = kwargs["game_ids"]
@@ -103,8 +103,8 @@ def igdb_api(**kwargs):
                 user_saved_games = data
             else:
                 print("append data")
+                print(user_saved_games["game_data"])
                 user_saved_games["game_data"].append(igdb_request_by_id_data[0])
-                # print(user_saved_games["game_data"])
 
             db.session.execute(db.update(User).where(User.id == current_user.id).values(saved_game_data=user_saved_games))
             db.session.commit()
@@ -121,7 +121,7 @@ def igdb_api(**kwargs):
             igdb_request_discover = requests.post(
                 url=f"{igdb_endpoint}/games",
                 headers=headers,
-                data=f'fields *, cover.*, platforms.*, release_dates.*, screenshots.*, videos.*, genres.*; where platforms.name = "{platform}" & genres.name = "{genre}"; limit 100;'),
+                data=f'fields *, cover.*, platforms.*, release_dates.*, screenshots.*, videos.*, genres.*; where platforms.name = "{platform}" & genres.name = "{genre}"; limit {limit}; sort date desc;'),
 
             igdb_random_data = igdb_request_discover[0].json()
             # print(igdb_random_data)
@@ -270,7 +270,7 @@ def register_user():
 
 # Main Site Routes
 @app.route(rule="/", methods=["GET", "POST"])
-def home():
+def home(**kwargs):
     # Grab games from DB instead of API call
     game_data = db.session.execute(db.select(IGDBData)).scalars().all()
     igdb_calls = {}
@@ -351,6 +351,39 @@ def add_game(game_id):
         # Do an API call to just update user's games using Kwargs
         # Call on API for newest game data
         igdb_api(request_type="user_games", game_ids=int(game_id))
+
+    return redirect(url_for(endpoint="home"))
+
+@app.route(rule="/remove_game/<game_id>")
+@login_required
+def remove_game(game_id):
+    # Get user's current game list
+    game_list = db.session.execute(db.select(User.user_games_saved).where(User.id == current_user.id)).scalar()
+
+    print(game_list)
+    print(game_id)
+
+    if int(game_id) in game_list["added_games"]:
+        print(f"Removing {game_id}")
+        game_list["added_games"].pop(game_list["added_games"].index(int(game_id)))
+        # TODO: Change this flash to display game names instead of ID numbers
+        flash(f"{game_id} removed from library")
+
+        # Add the updated list to the DB and commit
+        db.session.execute(db.update(User).where(User.id == current_user.id).values(user_games_saved=game_list))
+        db.session.commit()
+
+    # Remove game data
+    user_saved_games = db.session.execute(db.select(User.saved_game_data).where(User.id == current_user.id)).scalar()
+
+    for game in user_saved_games["game_data"]:
+        current_id = game["id"]
+        if int(game_id) == current_id:
+            print("found saved game data")
+            user_saved_games["game_data"].pop(user_saved_games["game_data"].index(game))
+
+            db.session.execute(db.update(User).where(User.id == current_user.id).values(saved_game_data=user_saved_games))
+            db.session.commit()
 
     return redirect(url_for(endpoint="home"))
 

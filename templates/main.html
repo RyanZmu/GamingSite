@@ -34,7 +34,7 @@ Home
             <a href="{{ random_games[random_number]['url'] }}" style="text-decoration: none; color: #BBE1FA;">
             <em>{{ random_games[random_number]["name"] }}
             ({% if random_games[random_number]["release_dates"] is defined %} {{ random_games[random_number]["release_dates"][0]["y"] }} {% endif %}
-            {% for platform in random_games[random_number]["platforms"] %} {{ platform['abbreviation'] }} {% endfor %}
+            {% for platform in random_games[random_number]["platforms"] %} {{ platform['abbreviation'] }} {% endfor %})
             </em>
             </a>
         </h5>
@@ -95,9 +95,9 @@ Home
         {% if current_user.is_authenticated %}
             {% if current_user.saved_game_data["game_data"] | length > 0 %}
                 {% for game in current_user.saved_game_data["game_data"] %}
-                    <div class="col-lg-2 col-md-2 col-sm-4 card m-2 featured-card wrap overflow-scroll p-2">
+                    <div class="col-lg-2 col-md-2 col-sm-4 card border-3 m-2 featured-card wrap overflow-scroll p-2">
                         {% if current_user.user_games_saved["added_games"] is defined and game["id"] in current_user.user_games_saved["added_games"] %}
-                            <a type="remove_button" class="btn btn-danger sticky-top" data-bs-toggle="remove_button" href="{{ url_for('home') }}">Remove Game -</a>
+                            <a type="remove_button" class="btn btn-danger sticky-top m-1" data-bs-toggle="remove_button" href="{{ url_for('remove_game', game_id=game['id']) }}">Remove Game</a>
                         {% endif %}
 
                         {% if game["cover"] is defined %}
@@ -112,6 +112,8 @@ Home
                                     <br>
                                     {% if game["release_dates"] is defined %} ({{ game["release_dates"][0]["human"] }}) {% endif %}
                                 </a>
+                                <br>
+                                {% for genre in game["genres"] %} <span class="badge rounded-pill bg-primary">{{ genre["name"] }}</span> {% endfor %}
                                 <br>
                                 {% if game["total_rating"] is defined %}
                                 <strong>
@@ -138,7 +140,7 @@ Home
 
                             <!--Get Platforms-->
                             {% for platform in game.platforms %}
-                                {{ platform.abbreviation }}
+                                <span class="badge rounded-pill bg-primary">{{ platform.abbreviation }}</span>
                             {% endfor %}
 
                             </p>
@@ -176,10 +178,11 @@ Home
         </div>
 
         <!-- Discover New Games Form/Section -->
-        <button class="btn btn-primary m-2" id="discoverBtn" type="button">Discover</button>
+        <button class="btn btn-primary m-2" id="discoverBtn" type="button" style="max-height:4.6vh;">Discover</button>
         <div class="discovery-section" id="discoverSection" style="display:none;">
             {{ render_form(form=discover_form, id="discovery") }}
-                    <!-- Loading Spinner -->
+
+        <!-- Loading Spinner -->
         <div class="spinner-border" role="status" id="loadingSpinnerDiscover" style="visibility:hidden; display:none;">
             <span class="visually-hidden" >Loading...</span>
         </div>
@@ -203,14 +206,14 @@ Home
     <!--Featured Games -->
     <div class="featured-games-row d-flex flex-row overflow-x-scroll">
         {% for game in random_games %}
-            <div class="col-lg-2 col-md-2 col-sm-4 card m-2 featured-card wrap overflow-scroll p-2">
+            <div class="col-lg-2 col-md-2 col-sm-4 card border-3 m-2 featured-card wrap overflow-scroll p-2">
                 <!-- Add game button -->
                 {% if current_user.user_games_saved is defined and game["id"] not in current_user.user_games_saved["added_games"] %}
-                    <a type="add_button" class="btn btn-success sticky-top" data-bs-toggle="add_button" href="{{ url_for('add_game', game_id=game['id']) }}">Add Game +</a>
+                    <a type="add_button" class="btn btn-info sticky-top m-1" data-bs-toggle="add_button" href="{{ url_for('add_game', game_id=game['id']) }}">Add Game</a>
                 {% elif current_user.user_games_saved is defined and game["id"] in current_user.user_games_saved["added_games"] %}
                     <a type="button" class="btn btn-secondary sticky-top" aria-disabled="true" data-bs-toggle="button" href="{{ url_for('add_game', game_id=game['id']) }}">Game Added</a>
                 {% else %}
-                    <a type="add_button" class="btn btn-success sticky-top" data-bs-toggle="add_button" href="{{ url_for('login') }}">Log in to Add Game</a>
+                    <a type="add_button" class="btn btn-info sticky-top" data-bs-toggle="add_button" href="{{ url_for('login') }}">Log in to Add Game</a>
                 {% endif %}
 
                 {% if game["cover"] is defined %}
@@ -225,6 +228,8 @@ Home
                             <br>
                             {% if game["release_dates"] is defined %} ({{ game["release_dates"][0]["human"] }}) {% endif %}
                         </a>
+                        <br>
+                        {% for genre in game["genres"] %} <span class="badge rounded-pill bg-primary">{{ genre["name"] }}</span> {% endfor %}
                         <br>
                         {% if game["total_rating"] is defined %}
                         <strong>
@@ -252,7 +257,7 @@ Home
 
                     <!--Get Platforms-->
                     {% for platform in game.platforms %}
-                        {{ platform.abbreviation }}
+                       <span class="badge rounded-pill bg-primary">{{ platform.abbreviation }}</span>
                     {% endfor %}
 
                     </p>
@@ -284,8 +289,8 @@ Home
             <!-- TODO remove the hardcoded dates at some point (hardcoded month in query) -->
             {% if game["game"] and game["game"]["release_dates"][0]['y'] is defined %}
                 {% if game["game"]["release_dates"][0]['y'] >= 2024 %}
-                <div class="col-lg-2 col-md-2 col-sm-4 card m-2 featured-card wrap overflow-scroll p-2">
-                    <button class="btn btn-success sticky-top">Track Game +</button>
+                <div class="col-lg-2 col-md-2 col-sm-4 card border-3 m-2 featured-card wrap overflow-scroll p-2">
+                    <button class="btn btn-info sticky-top m-1">Track Game</button>
                     {% if game["game"]["cover"] is defined %}
                     <img class="card-image" src="https://images.igdb.com/igdb/image/upload/t_cover_big/{{game['game']['cover']['image_id']}}.jpg" alt="game cover">
                     {% endif %}

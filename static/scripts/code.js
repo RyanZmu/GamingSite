@@ -9,7 +9,7 @@ document.getElementById("submit").onclick = function() {
     document.getElementById("loadingSpinnerDiscover").style.display = "block";
 }
 
-// Click events to handle the display of the discovery form
+// Click event to handle the display of the discovery form
 document.getElementById("discoverBtn").onclick = function() {
     if (document.getElementById("discoverSection").style.display == "none") {
         document.getElementById("discoverSection").style.visibility = "visible";
@@ -26,4 +26,3 @@ document.getElementById("discoverBtn").onclick = function() {
         document.getElementById("discoverBtn").innerHTML = "Discover"
     }
 }
-//

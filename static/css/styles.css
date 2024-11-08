@@ -9,20 +9,15 @@ body {
     color: #BBE1FA !important;
 }
 
-/*.navbar {*/
-/*    border-bottom-style: solid;*/
-/*    border-bottom-color: #0f4c752d;*/
-/*    border-bottom-width: 1px;*/
-/*}*/
-
 .featured-card {
     max-height: 50vh;
     background-color: #0F4C75 !important;
+    background-image: linear-gradient(to left, #0F4C75, #1B262C);
     color: #BBE1FA !important;
     z-index:0;
 }
 
-.discover-filter {
+.discover-filter{
     z-index:1
 }
 
@@ -136,7 +131,7 @@ body {
 }
 
 .card-title {
-    background-color: #0F4C75 !important;
+/*    background-color: #0F4C75 !important;*/
 }
 
 .oxanium-c {
