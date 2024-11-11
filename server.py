@@ -13,7 +13,7 @@ import requests
 from flask_wtf.csrf import CSRFProtect
 from forms import RegisterForm, LoginForm, DiscoverForm
 from database import db
-from database import User, IGDBData
+from database import User
 from flask_ckeditor import CKEditor
 from sqlalchemy.exc import IntegrityError
 from werkzeug.security import generate_password_hash, check_password_hash
@@ -21,6 +21,8 @@ from flask_login import login_user, LoginManager, login_required, current_user, 
 import psycopg2
 from random import randint
 from datetime import datetime
+import requests_cache
+from requests_cache import CachedSession
 
 app = Flask(__name__)
 
@@ -54,10 +56,19 @@ bootstrap = Bootstrap5(app)
 login_manager = LoginManager()
 login_manager.init_app(app)
 
+# API global return vars
+igdb_queries = {
+    "igdb_top": [],
+    "igdb_random": [],
+    "igdb_upcoming": [],
+    "user_game_data": []
+}
+
 def igdb_api(**kwargs):
+    global igdb_queries
     print("api called")
     # Default limit for api call, override with kwargs
-    limit = 200
+    limit = 5
 
     igdb_endpoint = "https://api.igdb.com/v4"
 
@@ -88,29 +99,16 @@ def igdb_api(**kwargs):
             igdb_request_by_id = requests.post(
                 url=f"{igdb_endpoint}/games",
                 headers=headers,
-                data=f"fields *, cover.*, platforms.*, release_dates.*, screenshots.*, videos.*, genres.*; where id=({game_ids});")
+                data=f"fields *, cover.*, platforms.*, release_dates.*, screenshots.*, videos.*, genres.*; where id=(111750);")
             igdb_request_by_id_data = igdb_request_by_id.json()
             # print(igdb_request_by_id_data)
 
-            # Add game data to user's saved_game_data
-            user_saved_games = db.session.execute(db.select(User.saved_game_data).where(User.id == current_user.id)).scalar()
 
-            # Data to add
-            data = {"game_data": igdb_request_by_id_data}
-
-            if not user_saved_games["game_data"]:
-                print("create saved game data")
-                user_saved_games = data
-            else:
-                print("append data")
-                print(user_saved_games["game_data"])
-                user_saved_games["game_data"].append(igdb_request_by_id_data[0])
-
-            db.session.execute(db.update(User).where(User.id == current_user.id).values(saved_game_data=user_saved_games))
-            db.session.commit()
+            igdb_queries["user_game_data"] = igdb_request_by_id_data
+            print(igdb_queries["user_game_data"])
 
             redirect(url_for("home"))
-            return igdb_request_by_id_data
+            # return igdb_request_by_id_data
 
         # Discover Games
         elif request_type == "discover":
@@ -152,7 +150,7 @@ def igdb_api(**kwargs):
     current_game_name = ""
     filtered_upcoming_data = []
     for game in igdb_upcoming_data:
-        print(game['game']['name'])
+        # print(game['game']['name'])
 
         if game["game"] and game['game']['name'] != current_game_name:
             current_game_name = game["game"]['name']
@@ -177,21 +175,9 @@ def igdb_api(**kwargs):
         "igdb_upcoming": filtered_upcoming_data
     }
 
-    data = IGDBData(
-        game=igdb_queries
-    )
-
-    db.session.execute(db.select(IGDBData))
-
-    try:
-        db.session.add(data)
-        db.session.commit()
-    except exc.IntegrityError:
-        print("DB DATA UPDATE NOT NEEDED")
-    else:
-        print("DB DATA UPDATED")
-
     return igdb_queries
+
+# print(igdb_queries)
 
 # User Routes
 @login_manager.user_loader
@@ -271,26 +257,28 @@ def register_user():
 # Main Site Routes
 @app.route(rule="/", methods=["GET", "POST"])
 def home(**kwargs):
-    # Grab games from DB instead of API call
-    game_data = db.session.execute(db.select(IGDBData)).scalars().all()
-    igdb_calls = {}
-    for game in game_data:
-        igdb_calls = {
-            "igdb_top": game.game["igdb_top"],
-            "igdb_random": game.game["igdb_random"],
-            "igdb_upcoming": game.game["igdb_upcoming"]
-        }
+    global igdb_queries
+    print(igdb_queries)
+
+    if current_user.is_authenticated :
+        user = db.session.execute(db.select(User).where(User.id == current_user.id)).scalar()
+        igdb_api(request_type="user_games", game_ids=user.user_games_saved["added_games"])
+        print(user.user_games_saved["added_games"])
+        user_games = igdb_queries["user_game_data"]
 
 
-    # Get 10 random games to display on homepage for users to check out
-    random_games = igdb_calls["igdb_random"]
-    # print(random_games)
-
-    # Get the upcoming games for this year (lots of dupes currently)
-    upcoming_games = igdb_calls["igdb_upcoming"]
-    # print(upcoming_games)
-
-    top_games = igdb_calls["igdb_top"]
+    # TODO Continue to move this logic from DB into just vars after API calls happen
+    # Get user games if they exist
+    #
+    # # Get 10 random games to display on homepage for users to check out
+    random_games = igdb_queries["igdb_random"]
+    # # print(random_games)
+    #
+    # # Get the upcoming games for this year (lots of dupes currently)
+    upcoming_games = igdb_queries["igdb_upcoming"]
+    # # print(upcoming_games)
+    #
+    top_games = igdb_queries["igdb_top"]
     # print(igdb_top)
 
     # Discovery Form
@@ -315,11 +303,12 @@ def home(**kwargs):
         random_games=random_games,
         upcoming_games=upcoming_games,
         top_games=top_games,
+        user_games=user_games,
         api_call=igdb_api,
         date=datetime.now(),
         time=time.time(),
         add_game=add_game,
-        random_number=randint(0, len(random_games)-1),
+        random_number=0,
         discover_form=discover_form,
     )
 
@@ -387,10 +376,42 @@ def remove_game(game_id):
 
     return redirect(url_for(endpoint="home"))
 
+# s = CachedSession(cache_name="test_cache", backend="sqlite")
 
 # Use this route to test page layouts
 @app.route(rule="/test", methods=["GET"])
 def test():
+    # # Test caching data from API
+    # requests_cache.install_cache('games_cache', backend='sqlite', expire_after=180)
+    # print("creating cache")
+    # # create a cached session
+    #
+    # # Default limit for api call, override with kwargs
+    # limit = 20
+    #
+    # igdb_endpoint = "https://api.igdb.com/v4"
+    #
+    # # Get token from Twitch
+    # # TODO Change logic so a token is requested only when expired - maybe move back into its own function
+    # token_request = requests.post(f"https://id.twitch.tv/oauth2/token?client_id={TWITCH_CLIENT}"
+    #                               f"&client_secret={TWITCH_SECRET}&grant_type=client_credentials")
+    # print(token_request.json())
+    # token = token_request.json()["access_token"]
+    #
+    # headers = {
+    #     "Client-ID": TWITCH_CLIENT,
+    #     "Authorization": f"Bearer {token}",
+    # }
+    #
+    # igdb_request = requests.post(
+    #     url=f"{igdb_endpoint}/games",
+    #     headers=headers,
+    #     data=f"fields *, cover.*, platforms.*, release_dates.*, screenshots.*, videos.*, genres.*; where rating > {randint(60, 70)} & rating < {randint(80, 100)}; limit {limit}; sort rating desc;")
+    # # igdb_random_data = igdb_request.json()
+    # requests_cache.get_cache().save_response(igdb_request)
+    #
+    # print(igdb_request.)
+
     return render_template(template_name_or_list="test.html")
 
 
