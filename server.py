@@ -68,7 +68,7 @@ def igdb_api(**kwargs):
     global igdb_queries
     print("api called")
     # Default limit for api call, override with kwargs
-    limit = 5
+    limit = 100
 
     igdb_endpoint = "https://api.igdb.com/v4"
 
@@ -86,43 +86,35 @@ def igdb_api(**kwargs):
 
     igdb_random_data = {}
 
-    if kwargs:
-        # limit = kwargs["limit"]
-        request_type = kwargs["request_type"]
+    # if current_user.is_authenticated and kwargs:
+    #     game_ids = kwargs["game_ids"]
+    #     igdb_request_by_id = requests.post(
+    #         url=f"{igdb_endpoint}/games",
+    #         headers=headers,
+    #         data=f"fields *, cover.*, platforms.*, release_dates.*, screenshots.*, videos.*, genres.*; where id=({game_ids});")
+    #     igdb_request_by_id_data = igdb_request_by_id.json()
+    #     # print(igdb_request_by_id_data)
 
-        # TODO Fix this so when a user adds a game, we just pass the data from the DB games table to the user table
-        # TODO and add the game data this way there is no need for an api as the data will be saved always
-        # TODO Remove this API call after doing the above!
-        # Just call API and get user's games info after adding new ones
-        if request_type == "user_games":
-            game_ids = kwargs["game_ids"]
-            igdb_request_by_id = requests.post(
-                url=f"{igdb_endpoint}/games",
-                headers=headers,
-                data=f"fields *, cover.*, platforms.*, release_dates.*, screenshots.*, videos.*, genres.*; where id=(111750);")
-            igdb_request_by_id_data = igdb_request_by_id.json()
-            # print(igdb_request_by_id_data)
+        #
+        # igdb_queries["user_game_data"] = igdb_request_by_id_data
+        # # # print(igdb_queries["user_game_data"])
+        #
+        # redirect(url_for("home"))
+        # return igdb_request_by_id_data
 
+    # # Discover Games
+    if kwargs and kwargs["request_type"] == "discover":
+        user_choices = kwargs["user_choices"]
+        platform = user_choices["platform"]
+        genre = user_choices["genre"]
+        print(user_choices)
+        igdb_request_discover = requests.post(
+            url=f"{igdb_endpoint}/games",
+            headers=headers,
+            data=f'fields *, cover.*, platforms.*, release_dates.*, screenshots.*, videos.*, genres.*; where platforms.name = "{platform}" & genres.name = "{genre}"; limit {limit}; sort date desc;'),
 
-            igdb_queries["user_game_data"] = igdb_request_by_id_data
-            print(igdb_queries["user_game_data"])
-
-            redirect(url_for("home"))
-            # return igdb_request_by_id_data
-
-        # Discover Games
-        elif request_type == "discover":
-            user_choices = kwargs["user_choices"]
-            platform = user_choices["platform"]
-            genre = user_choices["genre"]
-            print(user_choices)
-            igdb_request_discover = requests.post(
-                url=f"{igdb_endpoint}/games",
-                headers=headers,
-                data=f'fields *, cover.*, platforms.*, release_dates.*, screenshots.*, videos.*, genres.*; where platforms.name = "{platform}" & genres.name = "{genre}"; limit {limit}; sort date desc;'),
-
-            igdb_random_data = igdb_request_discover[0].json()
-            # print(igdb_random_data)
+        igdb_random_data = igdb_request_discover[0].json()
+        # print(igdb_random_data)
 
     # TODO: Make this more random and varied if possible
     print(len(igdb_random_data))
@@ -258,28 +250,35 @@ def register_user():
 @app.route(rule="/", methods=["GET", "POST"])
 def home(**kwargs):
     global igdb_queries
-    print(igdb_queries)
 
-    if current_user.is_authenticated :
-        user = db.session.execute(db.select(User).where(User.id == current_user.id)).scalar()
-        igdb_api(request_type="user_games", game_ids=user.user_games_saved["added_games"])
-        print(user.user_games_saved["added_games"])
-        user_games = igdb_queries["user_game_data"]
+    try:
+        # Get 10 random games to display on homepage for users to check out
+        random_games = igdb_queries["igdb_random"]
+        # print(random_games)
 
+        # Get the upcoming games for this year (lots of dupes currently)
+        upcoming_games = igdb_queries["igdb_upcoming"]
+        # print(upcoming_games)
 
-    # TODO Continue to move this logic from DB into just vars after API calls happen
-    # Get user games if they exist
-    #
-    # # Get 10 random games to display on homepage for users to check out
-    random_games = igdb_queries["igdb_random"]
-    # # print(random_games)
-    #
-    # # Get the upcoming games for this year (lots of dupes currently)
-    upcoming_games = igdb_queries["igdb_upcoming"]
-    # # print(upcoming_games)
-    #
-    top_games = igdb_queries["igdb_top"]
-    # print(igdb_top)
+        top_games = igdb_queries["igdb_top"]
+        # print(igdb_top)
+    except KeyError:
+        print(e)
+        # If KeyError occurs, do an API call and then set the vars
+        igdb_api()
+
+        # Get 10 random games to display on homepage for users to check out
+        random_games = igdb_queries["igdb_random"]
+        # print(random_games)
+
+        # # Get the upcoming games for this year (lots of dupes currently)
+        upcoming_games = igdb_queries["igdb_upcoming"]
+        # print(upcoming_games)
+
+        top_games = igdb_queries["igdb_top"]
+        # print(igdb_top)
+    else:
+        print("api data done")
 
     # Discovery Form
     discover_form = DiscoverForm()
@@ -303,12 +302,11 @@ def home(**kwargs):
         random_games=random_games,
         upcoming_games=upcoming_games,
         top_games=top_games,
-        user_games=user_games,
         api_call=igdb_api,
         date=datetime.now(),
         time=time.time(),
         add_game=add_game,
-        random_number=0,
+        random_number=randint(0, len(random_games)-1),
         discover_form=discover_form,
     )
 
@@ -324,22 +322,30 @@ def update_api_data():
 @app.route(rule="/add_game/<game_id>")
 @login_required
 def add_game(game_id):
+    global igdb_queries
     # Get user's current game list
     game_list = db.session.execute(db.select(User.user_games_saved).where(User.id == current_user.id)).scalar()
+    saved_games = db.session.execute(db.select(User.saved_game_data).where(User.id == current_user.id)).scalar()
+
     # Update the list if game is not already in list
     # Update added_games with ID
     if game_id not in game_list["added_games"]:
         game_list["added_games"].append(int(game_id))
-        # TODO: Change this flash to display game names instead of ID numbers
-        flash(f"{game_id} added to library")
 
-        # Add the updated list to the DB and commit
-        db.session.execute(db.update(User).where(User.id == current_user.id).values(user_games_saved=game_list))
-        db.session.commit()
+    # print(igdb_queries)
+    for game in igdb_queries["igdb_random"]:
+        print(f"found {game['name']}")
+        if int(game["id"]) == int(game_id):
+            print(f"adding {game['name']}")
+            saved_games["game_data"].append(game)
 
-        # Do an API call to just update user's games using Kwargs
-        # Call on API for newest game data
-        igdb_api(request_type="user_games", game_ids=int(game_id))
+            # TODO: Change this flash to display game names instead of ID numbers
+            flash(f"{game['name']} added to library")
+
+    # Add the updated list to the DB and commit
+    db.session.execute(db.update(User).where(User.id == current_user.id).values(user_games_saved=game_list))
+    db.session.execute(db.update(User).where(User.id == current_user.id).values(saved_game_data=saved_games))
+    db.session.commit()
 
     return redirect(url_for(endpoint="home"))
 
@@ -348,15 +354,16 @@ def add_game(game_id):
 def remove_game(game_id):
     # Get user's current game list
     game_list = db.session.execute(db.select(User.user_games_saved).where(User.id == current_user.id)).scalar()
+    # saved_games = db.session.execute(db.select(User.saved_game_data).where(User.id == current_user.id)).scalar()
 
-    print(game_list)
-    print(game_id)
+    # print(game_list)
+    # print(game_id)
 
     if int(game_id) in game_list["added_games"]:
         print(f"Removing {game_id}")
         game_list["added_games"].pop(game_list["added_games"].index(int(game_id)))
         # TODO: Change this flash to display game names instead of ID numbers
-        flash(f"{game_id} removed from library")
+        flash(f"Game removed from library")
 
         # Add the updated list to the DB and commit
         db.session.execute(db.update(User).where(User.id == current_user.id).values(user_games_saved=game_list))
