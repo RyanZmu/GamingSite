@@ -1,0 +1,116 @@
+{% extends 'base.html' %}
+
+{% block title %}
+{{ game["name"] }}
+{% endblock %}
+
+{% block content %}
+<!--carousel of game artwork/screenshots-->
+<div class="container-fluid m-0 main-container">
+    <div class="row align-items-start justify-content-between p-3">
+        <div class="col-4">
+            <div class="card p-2">
+                <div class="card-body">
+                                        <img src="https://images.igdb.com/igdb/image/upload/t_1080p/{{game['cover']['image_id']}}.jpg" class="card-img-top" alt="...">
+
+                    <span class="card-title" style="font-size: 2.2em;">{{ game["name"] }} ({{ game["release_dates"][0].y }})
+                        <br>
+                     {% if game["total_rating"] is defined %}
+                        <strong>
+                            {% set rating = game["total_rating"] / 10.00 | round(0, 'floor') | float %}
+                            <!-- round again to get desired 0.0 ratings -->
+                             {{ rating | round(1, 'floor') }}
+                            {% if rating >= 9.0 and rating <= 10.0 %}
+                                ★ ★ ★ ★ ★
+                            {% elif rating >= 8.0 and rating < 9.0 %}
+                                ★ ★ ★ ★ ☆
+                            {% elif rating >= 6.5 and rating < 8.0  %}
+                                ★ ★ ★ ☆ ☆
+                            {% elif rating >= 5.0 and rating < 6.5  %}
+                                ★ ★ ☆ ☆ ☆
+                            {% else %}
+                                ★ ☆ ☆ ☆ ☆
+                            {% endif %}
+                    {% endif %}
+                        </strong>
+                    </span>
+
+                    <!-- Developer-->
+                    {% for developer in game["involved_companies"] %}
+                        {% if game["id"] in developer["company"]["developed"] %}
+                            <p class="card-title mt-2"> <strong>{{ developer["company"]["name"] }}</strong></p>
+                        {% endif %}
+                    {% endfor %}
+
+                    <h2 class="card-subtitle mt-2 mb-2">
+                        {% for genre in game["genres"] %} <span class="badge rounded-pill bg-secondary mb-2">{{ genre["name"] }}</span> {% endfor %}
+                        <br>
+                        {% for platform in game["platforms"] %}
+                            <span class="badge rounded-pill bg-primary mt-2 mb-2">{{ platform.abbreviation }}</span>
+                        {% endfor %}
+                    </h2>
+                    <p class="card-text">
+                        <span style="font-size:2em;">Game Summary</span>
+                        <br>
+                        {{ game["summary"] }}
+                        <br>
+                        {% if game["storyline"] %}
+                        <span style="font-size:2em;">Storyline</span>
+                        <br>
+                        {{ game["storyline"] }}
+                        {% endif %}
+                    </p>
+                </div>
+
+            </div>
+        </div>
+
+        <div class="col-8">
+            <div class="card">
+            {% if game["screenshots"] %}
+            <div id="screenshotCarousel" class="carousel slide" data-bs-ride="carousel">
+              <div class="carousel-inner">
+                {% for screenshot in game["screenshots"] %}
+                {% if game["screenshots"].index(screenshot) == 0 %}
+                    <div class="carousel-item active">
+                      <img src="https://images.igdb.com/igdb/image/upload/t_1080p/{{screenshot['image_id']}}.jpg" class="d-block w-100 card-img" alt="...">
+                    </div>
+                {% else %}
+                  <div class="carousel-item">
+                      <img src="https://images.igdb.com/igdb/image/upload/t_1080p/{{screenshot['image_id']}}.jpg" class="d-block w-100" alt="...">
+                  </div>
+                {% endif %}
+                {% endfor %}
+              </div>
+              <button class="carousel-control-prev" type="button" data-bs-target="#screenshotCarousel" data-bs-slide="prev">
+                <span class="carousel-control-prev-icon" aria-hidden="true"></span>
+                <span class="visually-hidden">Previous</span>
+              </button>
+              <button class="carousel-control-next" type="button" data-bs-target="#screenshotCarousel" data-bs-slide="next">
+                <span class="carousel-control-next-icon" aria-hidden="true"></span>
+                <span class="visually-hidden">Next</span>
+              </button>
+            </div>
+            {% else %}
+            <div>No Media Available:(</div>
+            {% endif %}
+
+            <!-- News-->
+            <div class="card-body">
+                <h2>Recent News Mentioning {{ game["name"] }}</h2>
+                {% for article in game_news %}
+                    <p class="card-text">
+                        <img src="{{ article['urlToImage'] }}" style="max-height:5vh;">
+                        <a href="{{ article['url'] }}">{{ article["title"] }}</a>
+                        <br>
+                        {{ article["description"] }}
+                    </p>
+                {% endfor %}
+            </div>
+
+         </div>
+        </div>
+    </div>
+</div>
+
+{% endblock %}

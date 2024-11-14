@@ -27,11 +27,15 @@ Home
     </section>
     <div class="col-lg-4 col-sm-6 hero-image-container">
      <div class="card text-bg-dark hero-image-card overflow-scroll">
-      <img src="https://images.igdb.com/igdb/image/upload/t_cover_big_2x/{{random_games[random_number]['cover']['image_id']}}.jpg" class="card-img hero-game-image" alt="...">
-      <div class="card-img-overlay overflow-scroll">
+         {% if random_games[random_number]['cover'] is defined %}
+            <img src="https://images.igdb.com/igdb/image/upload/t_cover_big_2x/{{random_games[random_number]['cover']['image_id']}}.jpg" class="card-img hero-game-image" alt="...">
+         {% else %}
+            <img src="../static/images/controller_favicon.png">
+         {% endif %}
+         <div class="card-img-overlay overflow-scroll">
         <h5 class="card-title">
             Featured Game:
-            <a href="{{ random_games[random_number]['url'] }}" style="text-decoration: none; color: #BBE1FA;">
+            <a href="{{ url_for('game_page', game_id=random_games[random_number]['id']) }}" style="text-decoration: none; color: #BBE1FA;">
             <em>{{ random_games[random_number]["name"] }}
             ({% if random_games[random_number]["release_dates"] is defined %} {{ random_games[random_number]["release_dates"][0]["y"] }} {% endif %}
             {% for platform in random_games[random_number]["platforms"] %} {{ platform['abbreviation'] }} {% endfor %})
@@ -76,7 +80,7 @@ Home
             {% for game in top_games %}
                 <li>
                     <div class="must-play-list-item d-flex justify-content-between align-items-center p-3">
-                        <a href="{{ game['url'] }}" target="_blank" class=""><strong>{{ game["name"] }}</strong> <br> ({{ game["release_dates"][0]["human"] }})</a>
+                        <a href="{{ url_for('game_page', game_id=game['id']) }}" class=""><strong>{{ game["name"] }}</strong> <br> ({{ game["release_dates"][0]["human"] }})</a>
                         <img src="https://images.igdb.com/igdb/image/upload/t_cover_small/{{game['cover']['image_id']}}.jpg" alt="game cover">
                         </div>
                     </li>
@@ -107,7 +111,7 @@ Home
                         {% endif %}
 
                             <p class="card-title m-2">
-                                <a href="{{ game['url'] }}" target="_blank" style="text-decoration:none; color:#BBE1FA;">
+                                <a href="{{ url_for('game_page', game_id=game['id']) }}" style="text-decoration:none; color:#BBE1FA;">
                                     <strong class="m-0 p-0">{{ game["name"] }}</strong>
                                     <br>
                                     {% if game["release_dates"] is defined %} ({{ game["release_dates"][0]["human"] }}) {% endif %}
@@ -223,7 +227,7 @@ Home
                 {% endif %}
 
                     <p class="card-title m-2">
-                        <a href="{{ game['url'] }}" target="_blank" style="text-decoration:none; color:#BBE1FA;">
+                        <a href="{{ url_for('game_page', game_id=game['id']) }}" style="text-decoration:none; color:#BBE1FA;">
                             <strong class="m-0 p-0">{{ game["name"] }}</strong>
                             <br>
                             {% if game["release_dates"] is defined %} ({{ game["release_dates"][0]["human"] }}) {% endif %}
@@ -296,7 +300,7 @@ Home
                     {% endif %}
 
                         <p class="card-title m-2">
-                            <a href="{{ game['game']['url'] }}" target="_blank" style="text-decoration:none; color:#BBE1FA;">{{ game["game"]["name"] }}</a>
+                            <a href="{{ url_for('game_page', game_id=game['game']['id']) }}" style="text-decoration:none; color:#BBE1FA;">{{ game["game"]["name"] }}</a>
                             <br>
                             Coming Out: {{game['game']['release_dates'][0]['m']}}/{{ game['game']['release_dates'][0]['y'] }}
                             <br><br>
@@ -311,6 +315,17 @@ Home
                             <p class="card-body">
                                 {{ game["summary"]}}
                             </p>
+
+                          <!-- Screenshots -->
+                          <p class="card-text"><strong>Screenshots</strong></p>
+                          {% if game["game"]["screenshots"] | length > 0 %}
+                            {% for screenshot in game["game"]["screenshots"] %}
+                              <img src="https://images.igdb.com/igdb/image/upload/t_screenshot_med/{{ screenshot.image_id }}.jpg" class="card-img m-2 featured-game-screenshots">
+                            {% endfor %}
+                          {% else %}
+                            <p>No Screenshots provided</p>
+                          {% endif %}
+
                         </div>
                         {% endif %}
                     {% endif %}

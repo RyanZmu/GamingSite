@@ -32,6 +32,7 @@ TWITCH_CLIENT = os.environ.get("TWITCH_CLIENT")
 TWITCH_SECRET = os.environ.get("TWITCH_SECRET")
 BANNED_NAMES = os.environ.get("BANNED_NAMES")
 SECRET_WTF_KEY = os.environ.get("WTF_CSRF_SECRET_KEY")
+NEWS_API_KEY = os.environ.get("NEWS_API_KEY")
 
 # Enable CSRF for flask forms
 csrf = CSRFProtect(app)
@@ -63,6 +64,16 @@ igdb_queries = {
     "igdb_upcoming": [],
     "user_game_data": []
 }
+
+def get_twitch_token():
+    # Get token from Twitch
+    # TODO Change logic so a token is requested only when expired - maybe move back into its own function
+    token_request = requests.post(f"https://id.twitch.tv/oauth2/token?client_id={TWITCH_CLIENT}"
+                                  f"&client_secret={TWITCH_SECRET}&grant_type=client_credentials")
+    print(token_request.json())
+    token = token_request.json()["access_token"]
+
+    return token
 
 def igdb_api(**kwargs):
     global igdb_queries
@@ -134,7 +145,7 @@ def igdb_api(**kwargs):
     igdb_upcoming_request = requests.post(
         url=f"{igdb_endpoint}/release_dates",
         headers=headers,
-        data=f"fields *, game.*, game.cover.*, game.release_dates.*; where y = 2024 & m=(11,12) & game.hypes >= 10; limit 300; sort date asc;")
+        data=f"fields *, game.*, game.cover.*, game.release_dates.*, game.screenshots.*; where y = 2024 & m=(11,12) & game.hypes >= 10; limit 300; sort date asc;")
     igdb_upcoming_data = igdb_upcoming_request.json()
     # print(igdb_upcoming_data)
 
@@ -169,7 +180,9 @@ def igdb_api(**kwargs):
 
     return igdb_queries
 
-# print(igdb_queries)
+
+# Initial API call to fill igdb_queries
+igdb_api()
 
 # User Routes
 @login_manager.user_loader
@@ -251,34 +264,16 @@ def register_user():
 def home(**kwargs):
     global igdb_queries
 
-    try:
-        # Get 10 random games to display on homepage for users to check out
-        random_games = igdb_queries["igdb_random"]
-        # print(random_games)
+    # Get 10 random games to display on homepage for users to check out
+    random_games = igdb_queries["igdb_random"]
+    # print(random_games)
 
-        # Get the upcoming games for this year (lots of dupes currently)
-        upcoming_games = igdb_queries["igdb_upcoming"]
-        # print(upcoming_games)
+    # Get the upcoming games for this year (lots of dupes currently)
+    upcoming_games = igdb_queries["igdb_upcoming"]
+    # print(upcoming_games)
 
-        top_games = igdb_queries["igdb_top"]
-        # print(igdb_top)
-    except KeyError:
-        print(e)
-        # If KeyError occurs, do an API call and then set the vars
-        igdb_api()
-
-        # Get 10 random games to display on homepage for users to check out
-        random_games = igdb_queries["igdb_random"]
-        # print(random_games)
-
-        # # Get the upcoming games for this year (lots of dupes currently)
-        upcoming_games = igdb_queries["igdb_upcoming"]
-        # print(upcoming_games)
-
-        top_games = igdb_queries["igdb_top"]
-        # print(igdb_top)
-    else:
-        print("api data done")
+    top_games = igdb_queries["igdb_top"]
+    # print(igdb_top)
 
     # Discovery Form
     discover_form = DiscoverForm()
@@ -354,10 +349,6 @@ def add_game(game_id):
 def remove_game(game_id):
     # Get user's current game list
     game_list = db.session.execute(db.select(User.user_games_saved).where(User.id == current_user.id)).scalar()
-    # saved_games = db.session.execute(db.select(User.saved_game_data).where(User.id == current_user.id)).scalar()
-
-    # print(game_list)
-    # print(game_id)
 
     if int(game_id) in game_list["added_games"]:
         print(f"Removing {game_id}")
@@ -383,9 +374,54 @@ def remove_game(game_id):
 
     return redirect(url_for(endpoint="home"))
 
-# s = CachedSession(cache_name="test_cache", backend="sqlite")
 
-# Use this route to test page layouts
+# Game Page
+@app.route(rule="/game/<game_id>", methods=["GET"])
+def game_page(game_id):
+    igdb_endpoint = "https://api.igdb.com/v4"
+    token = get_twitch_token()
+
+    headers = {
+        "Client-ID": TWITCH_CLIENT,
+        "Authorization": f"Bearer {token}",
+    }
+
+    # API Call to IGDB for game info
+    game_data_request = requests.post(
+        url=f"{igdb_endpoint}/games",
+        headers=headers,
+        data=f"fields *, cover.*, platforms.*, release_dates.*, screenshots.*, videos.*, genres.*, "
+             f"age_ratings.*, artworks.*, dlcs.*, expansions.*, external_games.*, "
+             f"involved_companies.company.*, similar_games.*, themes.*, language_supports.*, collections.*; where id=({game_id});")
+    game_data = game_data_request.json()
+    print(game_data)
+
+    # Get Game's news
+    news_endpoint = "https://newsapi.org/v2/everything"
+    news_params = {
+        "apiKey": NEWS_API_KEY,
+        "q": f'{game_data[0]["name"]} game',
+        "pageSize": 5,
+        "language": "en",
+        "excludeDomains": "cardchronicle.com",
+        "sortBy": "popularity",
+    }
+
+    news_request = requests.get(news_endpoint, params=news_params)
+    news_data = news_request.json()
+
+    # print(news_data)
+    news_articles = news_data["articles"]
+    print(news_articles)
+
+    return render_template(template_name_or_list="game_page.html", game=game_data[0], game_news=news_articles)
+
+
+# Search Route here to lead to game pages
+# First user searches then sees a results page, clicks name of game and then the id is passed that way
+# Just like with Movie DB project
+
+# Use this route to test page layouts and other ideas
 @app.route(rule="/test", methods=["GET"])
 def test():
     # # Test caching data from API
