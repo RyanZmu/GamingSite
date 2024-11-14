@@ -8,6 +8,7 @@ from flask import Flask, render_template, request, redirect, url_for, flash, abo
 from flask_bootstrap import Bootstrap5
 import os
 import time
+import re
 from dotenv import load_dotenv
 import requests
 from flask_wtf.csrf import CSRFProtect
@@ -394,25 +395,59 @@ def game_page(game_id):
              f"age_ratings.*, artworks.*, dlcs.*, expansions.*, external_games.*, "
              f"involved_companies.company.*, similar_games.*, themes.*, language_supports.*, collections.*; where id=({game_id});")
     game_data = game_data_request.json()
-    print(game_data)
+    # print(game_data[0]["name"])
 
     # Get Game's news
-    news_endpoint = "https://newsapi.org/v2/everything"
-    news_params = {
-        "apiKey": NEWS_API_KEY,
-        "q": f'{game_data[0]["name"]} game',
-        "pageSize": 5,
-        "language": "en",
-        "excludeDomains": "cardchronicle.com",
-        "sortBy": "popularity",
-    }
+    # Error catch for when NEWS API rate limits hit - consider finding a new API to use for gaming news
+    # Currently using
+    try:
+        # news_endpoint = "https://newsapi.org/v2/everything"
+        # news_params = {
+        #     "apiKey": NEWS_API_KEY,
+        #     "q": f'{game_data[0]["name"]}',
+        #     "pageSize": 5,
+        #     "language": "en",
+        #     "excludeDomains": "cardchronicle.com,mlbtraderumors.com,mgoblog.com,japan.cnet.com",
+        # }
+        #
+        # news_request = requests.get(news_endpoint, params=news_params)
+        # news_data = news_request.json()
+        #
+        # news_articles = news_data["articles"]
+        # print(news_articles)
 
-    news_request = requests.get(news_endpoint, params=news_params)
-    news_data = news_request.json()
+        # Try GNEWS API
+        gnews_key = os.environ.get("GNEWS_API_KEY")
 
-    # print(news_data)
-    news_articles = news_data["articles"]
-    print(news_articles)
+        gnews_baseurl = "https://gnews.io/api/v4/"
+
+        # remove special chars and also any double spaces left behind when chars are removed - clunky solution.
+        game_name = re.sub("[^A-Za-z0-9]|[\s]", " ", game_data[0]["name"])
+        game_name_final = re.sub("\s{2,}", " ", game_name)
+        print(game_name_final)
+
+        gnews_params = {
+            "apikey": gnews_key,
+            "q": f"{game_name_final}",
+            "lang": "en",
+            "sortby": "publishedAt",
+            "max": 10,
+        }
+
+        gnews_search = requests.get(f"{gnews_baseurl}/search", params=gnews_params)
+        gnews_data = gnews_search.json()
+        print(gnews_data)
+
+        news_articles = gnews_data["articles"]
+
+    except KeyError as e:
+        print("news api data missing - possible rate limit hit")
+        print(e)
+    else:
+        print("news api data found")
+
+
+
 
     return render_template(template_name_or_list="game_page.html", game=game_data[0], game_news=news_articles)
 

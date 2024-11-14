@@ -11,8 +11,7 @@
         <div class="col-4">
             <div class="card p-2">
                 <div class="card-body">
-                                        <img src="https://images.igdb.com/igdb/image/upload/t_1080p/{{game['cover']['image_id']}}.jpg" class="card-img-top" alt="...">
-
+                    <img src="https://images.igdb.com/igdb/image/upload/t_1080p/{{game['cover']['image_id']}}.jpg" class="card-img-top" alt="...">
                     <span class="card-title" style="font-size: 2.2em;">{{ game["name"] }} ({{ game["release_dates"][0].y }})
                         <br>
                      {% if game["total_rating"] is defined %}
@@ -98,14 +97,18 @@
             <!-- News-->
             <div class="card-body">
                 <h2>Recent News Mentioning {{ game["name"] }}</h2>
+                {% if game_news | length != 0 %}
                 {% for article in game_news %}
                     <p class="card-text">
-                        <img src="{{ article['urlToImage'] }}" style="max-height:5vh;">
+                        <img src="{{ article['image'] }}" style="max-height:5vh;">
                         <a href="{{ article['url'] }}">{{ article["title"] }}</a>
                         <br>
                         {{ article["description"] }}
                     </p>
                 {% endfor %}
+                {% else %}
+                <p class="card-text">No Recent News Found</p>
+                {% endif %}
             </div>
 
          </div>

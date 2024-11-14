@@ -23,7 +23,7 @@
 
 <nav class="navbar navbar-expand-lg navbar-collapse-md px-5 sticky-top">
   <div class="container-fluid">
-    <a class="navbar-brand oxanium-c" href="/">
+    <a class="navbar-brand oxanium-c p-2" href="/">
         SavePoint
         <img src="/static/images/controller_favicon.png" width="25vw" height="25vh" alt="">
     </a>
@@ -44,8 +44,8 @@
         <li class="nav-item">
           <a class="nav-link oxanium-c" href="{{ url_for('logout') }}">Logout</a>
         </li>
-        <li class="nav-item">
-          <a class="nav-link oxanium-c" href="{{ url_for('home') }}"><img src="{{ current_user.profile_pic }}">{{ current_user.username }}</a>
+        <li class="nav-item ">
+          <a class="nav-link oxanium-c" href="{{ url_for('home') }}"><img src="{{ current_user.profile_pic }}" style="max-height:2em;">{{ current_user.username }}</a>
         </li>
         {% elif current_user.is_authenticated == False %}
         <li class="nav-item">

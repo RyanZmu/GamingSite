@@ -20,7 +20,7 @@ body {
     color: #BBE1FA !important;
 }
 
-.nav-link:hover, .navbar-brand:hover {
+.nav-item:hover, .navbar-brand:hover {
     background-image: radial-gradient(#0F4C75 15%, #1B262C 90%) !important;
     color: #BBE1FA !important;
 }
