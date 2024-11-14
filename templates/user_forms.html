@@ -15,7 +15,7 @@
 
     <!--Register Form-->
   {% if request.path == '/register' %}
-    <div class="container-fluid d-flex flex-column align-items-center">
+    <div class="container-fluid d-flex flex-column align-items-center register-form">
       <h1>Register Below</h1>
        {{ render_form(form) }}
     </div>
@@ -23,10 +23,9 @@
 
     <!--Login Form-->
   {% if request.path == '/login' %}
-    <div class="container-fluid d-flex flex-column align-items-center">
+    <div class="container-fluid d-flex flex-column align-items-center login-form">
       <h1>Login Below</h1>
        {{ render_form(form) }}
     </div>
   {% endif %}
-
 {% endblock %}

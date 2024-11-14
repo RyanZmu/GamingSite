@@ -11,9 +11,9 @@ import time
 from dotenv import load_dotenv
 import requests
 from flask_wtf.csrf import CSRFProtect
-from forms import RegisterForm, LoginForm
+from forms import RegisterForm, LoginForm, DiscoverForm
 from database import db
-from database import User, IGDBData
+from database import User
 from flask_ckeditor import CKEditor
 from sqlalchemy.exc import IntegrityError
 from werkzeug.security import generate_password_hash, check_password_hash
@@ -21,6 +21,8 @@ from flask_login import login_user, LoginManager, login_required, current_user, 
 import psycopg2
 from random import randint
 from datetime import datetime
+import requests_cache
+from requests_cache import CachedSession
 
 app = Flask(__name__)
 
@@ -30,6 +32,7 @@ TWITCH_CLIENT = os.environ.get("TWITCH_CLIENT")
 TWITCH_SECRET = os.environ.get("TWITCH_SECRET")
 BANNED_NAMES = os.environ.get("BANNED_NAMES")
 SECRET_WTF_KEY = os.environ.get("WTF_CSRF_SECRET_KEY")
+NEWS_API_KEY = os.environ.get("NEWS_API_KEY")
 
 # Enable CSRF for flask forms
 csrf = CSRFProtect(app)
@@ -39,28 +42,13 @@ app.secret_key = os.environ.get("APP_SECRET_KEY")
 
 # Load DB
 app.config["SQLALCHEMY_DATABASE_URI"] = os.environ.get("DB_URI", "sqlite:///main.db")
-
+app.config['BOOTSTRAP_BOOTSWATCH_THEME'] = 'slate'
 # init app with extension
 db.init_app(app)
 
 # Create the db tables
 with app.app_context():
     db.create_all()
-
-    # if User.query.count == 0:
-    #     users = db.session.execute(db.select(User))
-    #
-    #     admin = User(
-    #         username="admin",
-    #         email="admin@admin.com",
-    #         email_hash=hashlib.sha256(email_encoded).hexdigest(),
-    #         password=generate_password_hash(12345678, method="scrypt", salt_length=10),
-    #     )
-    #
-    #     admin.profile_pic = f"https://gravatar.com/avatar/{ admin.email_hash }?d=retro&s=40"
-    #
-    #     users.session.add(admin)
-    #     users.session.commit()
 
 # Load bootstrap
 bootstrap = Bootstrap5(app)
@@ -69,9 +57,28 @@ bootstrap = Bootstrap5(app)
 login_manager = LoginManager()
 login_manager.init_app(app)
 
+# API global return vars
+igdb_queries = {
+    "igdb_top": [],
+    "igdb_random": [],
+    "igdb_upcoming": [],
+    "user_game_data": []
+}
+
+def get_twitch_token():
+    # Get token from Twitch
+    # TODO Change logic so a token is requested only when expired - maybe move back into its own function
+    token_request = requests.post(f"https://id.twitch.tv/oauth2/token?client_id={TWITCH_CLIENT}"
+                                  f"&client_secret={TWITCH_SECRET}&grant_type=client_credentials")
+    print(token_request.json())
+    token = token_request.json()["access_token"]
+
+    return token
+
 def igdb_api(**kwargs):
+    global igdb_queries
     print("api called")
-    # Default limit api call to 30 items, override with kwargs
+    # Default limit for api call, override with kwargs
     limit = 100
 
     igdb_endpoint = "https://api.igdb.com/v4"
@@ -88,67 +95,57 @@ def igdb_api(**kwargs):
         "Authorization": f"Bearer {token}",
     }
 
-    if kwargs:
-        # limit = kwargs["limit"]
-        request_type = kwargs["request_type"]
-        # game_ids = tuple(kwargs["game_ids"]["added_games"])
-        game_ids = kwargs["game_ids"]
-        # print(request_type)
+    igdb_random_data = {}
 
-        # TODO: Cache game data because I can only call 10 id's at a time (maybe break up requests into batches)
-        # TODO: Add a column called user_game_data and when a user adds a game,
-        # TODO: call the api with the id and add it's data to the column's row - {"game_data": data}
-        # Just call API and get user's games info after adding new ones
-        if request_type == "user_games":
-            igdb_request_by_id = requests.post(
-                url=f"{igdb_endpoint}/games",
-                headers=headers,
-                data=f"fields *, cover.*, platforms.*, release_dates.*, screenshots.*, videos.*, genres.*; where id=({game_ids});")
-            igdb_request_by_id_data = igdb_request_by_id.json()
-            print(igdb_request_by_id_data)
+    # if current_user.is_authenticated and kwargs:
+    #     game_ids = kwargs["game_ids"]
+    #     igdb_request_by_id = requests.post(
+    #         url=f"{igdb_endpoint}/games",
+    #         headers=headers,
+    #         data=f"fields *, cover.*, platforms.*, release_dates.*, screenshots.*, videos.*, genres.*; where id=({game_ids});")
+    #     igdb_request_by_id_data = igdb_request_by_id.json()
+    #     # print(igdb_request_by_id_data)
 
-            # Add game data to user's saved_game_data
-            user_saved_games = db.session.execute(db.select(User.saved_game_data).where(User.id == current_user.id)).scalar()
+        #
+        # igdb_queries["user_game_data"] = igdb_request_by_id_data
+        # # # print(igdb_queries["user_game_data"])
+        #
+        # redirect(url_for("home"))
+        # return igdb_request_by_id_data
 
-            # Data to add
-            data = {"game_data": igdb_request_by_id_data}
+    # # Discover Games
+    if kwargs and kwargs["request_type"] == "discover":
+        user_choices = kwargs["user_choices"]
+        platform = user_choices["platform"]
+        genre = user_choices["genre"]
+        print(user_choices)
+        igdb_request_discover = requests.post(
+            url=f"{igdb_endpoint}/games",
+            headers=headers,
+            data=f'fields *, cover.*, platforms.*, release_dates.*, screenshots.*, videos.*, genres.*; where platforms.name = "{platform}" & genres.name = "{genre}"; limit {limit}; sort date desc;'),
 
-            if not user_saved_games["game_data"]:
-                print("create saved game data")
-                user_saved_games = data
-            else:
-                print("append data")
-                user_saved_games["game_data"].append(igdb_request_by_id_data[0])
-                print(user_saved_games["game_data"])
-
-            db.session.execute(db.update(User).where(User.id == current_user.id).values(saved_game_data=user_saved_games))
-            db.session.commit()
-
-
-
-            redirect(url_for("home"))
-
-            return igdb_request_by_id_data
-
+        igdb_random_data = igdb_request_discover[0].json()
+        # print(igdb_random_data)
 
     # TODO: Make this more random and varied if possible
-    # Get random games content ids
-    igdb_request = requests.post(
-        url=f"{igdb_endpoint}/games",
-        headers=headers,
-        data=f"fields *, cover.*, platforms.*, release_dates.*, screenshots.*, videos.*, genres.*; where rating > {randint(60, 70)} & rating < {randint(80, 100)}; limit {limit}; sort rating desc;")
-    igdb_random_data = igdb_request.json()
-    print(igdb_random_data)
+    print(len(igdb_random_data))
+    if len(igdb_random_data) == 0:
+        igdb_request = requests.post(
+            url=f"{igdb_endpoint}/games",
+            headers=headers,
+            data=f"fields *, cover.*, platforms.*, release_dates.*, screenshots.*, videos.*, genres.*; where rating > {randint(60, 70)} & rating < {randint(80, 100)}; limit {limit}; sort rating desc;")
+        igdb_random_data = igdb_request.json()
+    # print(igdb_random_data)
 
     # Get Upcoming games
-    current_year = str(datetime.year)
+    # current_year = str(datetime.year)
     # print({"current_year": current_year})
 
-    # TODO WOrk on getting more relevant new releases to display and no duplicates
+    # TODO Work on getting more relevant new releases to display and no duplicates
     igdb_upcoming_request = requests.post(
         url=f"{igdb_endpoint}/release_dates",
         headers=headers,
-        data=f"fields *, game.*, game.cover.*, game.release_dates.*; where y = 2024 & m=(11,12) & game.hypes >= 20; limit 100; sort date asc;")
+        data=f"fields *, game.*, game.cover.*, game.release_dates.*, game.screenshots.*; where y = 2024 & m=(11,12) & game.hypes >= 10; limit 300; sort date asc;")
     igdb_upcoming_data = igdb_upcoming_request.json()
     # print(igdb_upcoming_data)
 
@@ -156,12 +153,12 @@ def igdb_api(**kwargs):
     current_game_name = ""
     filtered_upcoming_data = []
     for game in igdb_upcoming_data:
-        print(game['game']['name'])
+        # print(game['game']['name'])
 
-        if game['game']['name'] != current_game_name:
-            current_game_name = game['game']['name']
+        if game["game"] and game['game']['name'] != current_game_name:
+            current_game_name = game["game"]['name']
             filtered_upcoming_data.append(game)
-            print(current_game_name)
+            # print(current_game_name)
 
 
 
@@ -181,29 +178,11 @@ def igdb_api(**kwargs):
         "igdb_upcoming": filtered_upcoming_data
     }
 
-    data = IGDBData(
-        game=igdb_queries
-    )
-
-    db.session.execute(db.select(IGDBData))
-
-    try:
-        db.session.add(data)
-        db.session.commit()
-    except exc.IntegrityError:
-        print("DB DATA UPDATE NOT NEEDED")
-    else:
-        print("DB DATA UPDATED")
-
-
     return igdb_queries
 
 
-# while True:
-#     # 3600 seconds in an hour - every hour or so do an API call to refresh db data
-#     time.sleep(3600)
-#     igdb_api_call = igdb_api()
-
+# Initial API call to fill igdb_queries
+igdb_api()
 
 # User Routes
 @login_manager.user_loader
@@ -222,10 +201,7 @@ def login():
         if requested_user is not None:
             if check_password_hash(requested_user.password, requested_password):
                 login_user(requested_user)
-                # print(current_user)
                 flash(f"Welcome {current_user.username}!")
-                print(current_user.is_authenticated)
-                # time.sleep(3)
                 return redirect(url_for("home"))
             else:
                 flash("Wrong Credentials please try again!")
@@ -265,7 +241,7 @@ def register_user():
         )
 
         # Add a default profile pic after email is hashed
-        new_user.profile_pic = f"https://gravatar.com/avatar/{ new_user.email_hash }?d=retro&s=40"
+        new_user.profile_pic = f"https://gravatar.com/avatar/{new_user.email_hash}?d=retro&s=40"
 
         try:
             db.session.add(new_user)
@@ -285,34 +261,36 @@ def register_user():
 
 # Main Site Routes
 @app.route(rule="/", methods=["GET", "POST"])
-def home():
-    # Grab games from DB instead of API call
-    game_data = db.session.execute(db.select(IGDBData)).scalars().all()
-
-    igdb_calls = {}
-
-    for game in game_data:
-        igdb_calls = {
-            "igdb_top": game.game["igdb_top"],
-            "igdb_random": game.game["igdb_random"],
-            "igdb_upcoming": game.game["igdb_upcoming"]
-        }
+def home(**kwargs):
+    global igdb_queries
 
     # Get 10 random games to display on homepage for users to check out
-    random_games = igdb_calls["igdb_random"]
+    random_games = igdb_queries["igdb_random"]
     # print(random_games)
 
     # Get the upcoming games for this year (lots of dupes currently)
-    upcoming_games = igdb_calls["igdb_upcoming"]
+    upcoming_games = igdb_queries["igdb_upcoming"]
     # print(upcoming_games)
 
-    top_games = igdb_calls["igdb_top"]
-    print(time.time())
+    top_games = igdb_queries["igdb_top"]
+    # print(igdb_top)
 
-    # TODO: Possibly move this data into the DB to avoid unneeded api calls from /home
-    # TODO: Ideally sort DB info for games and have a relation to the game db from the user db - parse api calls
-    # Do an API call to just update user's games using Kwargs
-    # user_games = igdb_api(request_type="user_games", game_ids=game_list)
+    # Discovery Form
+    discover_form = DiscoverForm()
+
+    # TODO currently will get games from platforms, however page needs to reload for games to display
+    # TODO Find all the ways IGDB names platforms and correct the form choices
+    if discover_form.validate_on_submit():
+        platform = discover_form.data.get("platform")
+        genre = discover_form.data.get("genre")
+
+        user_choices = {
+            "platform": platform,
+            "genre": genre,
+        }
+        igdb_api(request_type="discover", user_choices=user_choices)
+        return redirect(url_for("home"))
+
 
     return render_template(
         template_name_or_list="main.html",
@@ -323,7 +301,8 @@ def home():
         date=datetime.now(),
         time=time.time(),
         add_game=add_game,
-        random_number=randint(0, len(random_games)-1)
+        random_number=randint(0, len(random_games)-1),
+        discover_form=discover_form,
     )
 
 # Use this route to let the user Update the games shown and eventually set API update intervals
@@ -338,32 +317,144 @@ def update_api_data():
 @app.route(rule="/add_game/<game_id>")
 @login_required
 def add_game(game_id):
+    global igdb_queries
     # Get user's current game list
     game_list = db.session.execute(db.select(User.user_games_saved).where(User.id == current_user.id)).scalar()
-    # print(game_list)
+    saved_games = db.session.execute(db.select(User.saved_game_data).where(User.id == current_user.id)).scalar()
 
     # Update the list if game is not already in list
     # Update added_games with ID
     if game_id not in game_list["added_games"]:
         game_list["added_games"].append(int(game_id))
+
+    # print(igdb_queries)
+    for game in igdb_queries["igdb_random"]:
+        print(f"found {game['name']}")
+        if int(game["id"]) == int(game_id):
+            print(f"adding {game['name']}")
+            saved_games["game_data"].append(game)
+
+            # TODO: Change this flash to display game names instead of ID numbers
+            flash(f"{game['name']} added to library")
+
+    # Add the updated list to the DB and commit
+    db.session.execute(db.update(User).where(User.id == current_user.id).values(user_games_saved=game_list))
+    db.session.execute(db.update(User).where(User.id == current_user.id).values(saved_game_data=saved_games))
+    db.session.commit()
+
+    return redirect(url_for(endpoint="home"))
+
+@app.route(rule="/remove_game/<game_id>")
+@login_required
+def remove_game(game_id):
+    # Get user's current game list
+    game_list = db.session.execute(db.select(User.user_games_saved).where(User.id == current_user.id)).scalar()
+
+    if int(game_id) in game_list["added_games"]:
+        print(f"Removing {game_id}")
+        game_list["added_games"].pop(game_list["added_games"].index(int(game_id)))
         # TODO: Change this flash to display game names instead of ID numbers
-        flash(f"{game_id} added to library")
+        flash(f"Game removed from library")
 
         # Add the updated list to the DB and commit
         db.session.execute(db.update(User).where(User.id == current_user.id).values(user_games_saved=game_list))
         db.session.commit()
 
-        # Do an API call to just update user's games using Kwargs
-        # Call on API for newest game data
-        print({"game_id": game_id})
-        igdb_api(request_type="user_games", game_ids=int(game_id))
+    # Remove game data
+    user_saved_games = db.session.execute(db.select(User.saved_game_data).where(User.id == current_user.id)).scalar()
+
+    for game in user_saved_games["game_data"]:
+        current_id = game["id"]
+        if int(game_id) == current_id:
+            print("found saved game data")
+            user_saved_games["game_data"].pop(user_saved_games["game_data"].index(game))
+
+            db.session.execute(db.update(User).where(User.id == current_user.id).values(saved_game_data=user_saved_games))
+            db.session.commit()
 
     return redirect(url_for(endpoint="home"))
 
 
-# Use this route to test page layouts
+# Game Page
+@app.route(rule="/game/<game_id>", methods=["GET"])
+def game_page(game_id):
+    igdb_endpoint = "https://api.igdb.com/v4"
+    token = get_twitch_token()
+
+    headers = {
+        "Client-ID": TWITCH_CLIENT,
+        "Authorization": f"Bearer {token}",
+    }
+
+    # API Call to IGDB for game info
+    game_data_request = requests.post(
+        url=f"{igdb_endpoint}/games",
+        headers=headers,
+        data=f"fields *, cover.*, platforms.*, release_dates.*, screenshots.*, videos.*, genres.*, "
+             f"age_ratings.*, artworks.*, dlcs.*, expansions.*, external_games.*, "
+             f"involved_companies.company.*, similar_games.*, themes.*, language_supports.*, collections.*; where id=({game_id});")
+    game_data = game_data_request.json()
+    print(game_data)
+
+    # Get Game's news
+    news_endpoint = "https://newsapi.org/v2/everything"
+    news_params = {
+        "apiKey": NEWS_API_KEY,
+        "q": f'{game_data[0]["name"]} game',
+        "pageSize": 5,
+        "language": "en",
+        "excludeDomains": "cardchronicle.com",
+        "sortBy": "popularity",
+    }
+
+    news_request = requests.get(news_endpoint, params=news_params)
+    news_data = news_request.json()
+
+    # print(news_data)
+    news_articles = news_data["articles"]
+    print(news_articles)
+
+    return render_template(template_name_or_list="game_page.html", game=game_data[0], game_news=news_articles)
+
+
+# Search Route here to lead to game pages
+# First user searches then sees a results page, clicks name of game and then the id is passed that way
+# Just like with Movie DB project
+
+# Use this route to test page layouts and other ideas
 @app.route(rule="/test", methods=["GET"])
 def test():
+    # # Test caching data from API
+    # requests_cache.install_cache('games_cache', backend='sqlite', expire_after=180)
+    # print("creating cache")
+    # # create a cached session
+    #
+    # # Default limit for api call, override with kwargs
+    # limit = 20
+    #
+    # igdb_endpoint = "https://api.igdb.com/v4"
+    #
+    # # Get token from Twitch
+    # # TODO Change logic so a token is requested only when expired - maybe move back into its own function
+    # token_request = requests.post(f"https://id.twitch.tv/oauth2/token?client_id={TWITCH_CLIENT}"
+    #                               f"&client_secret={TWITCH_SECRET}&grant_type=client_credentials")
+    # print(token_request.json())
+    # token = token_request.json()["access_token"]
+    #
+    # headers = {
+    #     "Client-ID": TWITCH_CLIENT,
+    #     "Authorization": f"Bearer {token}",
+    # }
+    #
+    # igdb_request = requests.post(
+    #     url=f"{igdb_endpoint}/games",
+    #     headers=headers,
+    #     data=f"fields *, cover.*, platforms.*, release_dates.*, screenshots.*, videos.*, genres.*; where rating > {randint(60, 70)} & rating < {randint(80, 100)}; limit {limit}; sort rating desc;")
+    # # igdb_random_data = igdb_request.json()
+    # requests_cache.get_cache().save_response(igdb_request)
+    #
+    # print(igdb_request.)
+
     return render_template(template_name_or_list="test.html")
 
 

@@ -22,9 +22,3 @@ class User(db.Model, UserMixin):
     user_bio: Mapped[str] = mapped_column(String(255), nullable=True)
     user_games_saved: Mapped[str] = mapped_column(JSON, nullable=True)
     saved_game_data: Mapped[str] = mapped_column(JSON, nullable=True)
-
-class IGDBData(db.Model):
-    __tablename__ = "igdb_data"
-
-    id: Mapped[int] = mapped_column(Integer, primary_key=True)
-    game: Mapped[str] = mapped_column(JSON, unique=True, nullable=False)
