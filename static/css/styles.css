@@ -20,7 +20,7 @@ body {
     color: #BBE1FA !important;
 }
 
-.nav-link:hover, .navbar-brand:hover {
+.nav-item:hover, .navbar-brand:hover {
     background-image: radial-gradient(#0F4C75 15%, #1B262C 90%) !important;
     color: #BBE1FA !important;
 }
@@ -168,4 +168,9 @@ body {
   font-optical-sizing: auto;
   font-weight: 10;
   font-style: normal;
+}
+
+.game_company_logo {
+    max-width: 5vw;
+    max-height: 10vh;
 }

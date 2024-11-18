@@ -11,12 +11,22 @@
         <div class="col-4">
             <div class="card p-2">
                 <div class="card-body">
-                                        <img src="https://images.igdb.com/igdb/image/upload/t_1080p/{{game['cover']['image_id']}}.jpg" class="card-img-top" alt="...">
-
-                    <span class="card-title" style="font-size: 2.2em;">{{ game["name"] }} ({{ game["release_dates"][0].y }})
-                        <br>
+                    <img src="https://images.igdb.com/igdb/image/upload/t_1080p/{{game['cover']['image_id']}}.jpg" class="card-img-top" alt="...">
+                    <span class="card-title" style="font-size: 2.2em;">{{ game["name"] }} ({{ game["release_dates"][0].y }}) </span>
+                    <!-- Add game button -->
+                    <div></div>
+                    {% if current_user.user_games_saved is defined and game["id"] not in current_user.user_games_saved["added_games"] %}
+                        <a type="add_button" class="btn btn-success sticky-top m-1" data-bs-toggle="add_button" href="{{ url_for('add_game', game_id=game['id']) }}" onfocus>Add Game</a>
+                    {% elif current_user.user_games_saved is defined and game["id"] in current_user.user_games_saved["added_games"] %}
+                        <a type="button" class="btn btn-secondary sticky-top" aria-disabled="true" data-bs-toggle="button" href="{{ url_for('add_game', game_id=game['id']) }}">Game Added</a>
+                        <a type="remove_button" class="btn btn-danger sticky-top m-1" data-bs-toggle="remove_button" href="{{ url_for('remove_game', game_id=game['id']) }}">Remove Game</a>
+                    {% else %}
+                        <a type="add_button" class="btn btn-info sticky-top" data-bs-toggle="add_button" href="{{ url_for('login') }}">Log in to Add Game</a>
+                    {% endif %}
+                    <br>
                      {% if game["total_rating"] is defined %}
-                        <strong>
+                       <span style="font-size:2.2em">
+                           <strong>
                             {% set rating = game["total_rating"] / 10.00 | round(0, 'floor') | float %}
                             <!-- round again to get desired 0.0 ratings -->
                              {{ rating | round(1, 'floor') }}
@@ -31,12 +41,18 @@
                             {% else %}
                                 ★ ☆ ☆ ☆ ☆
                             {% endif %}
+                            </strong>
+                       </span>
+                    {% else %}
+                            No Ratings Yet
                     {% endif %}
-                        </strong>
-                    </span>
+                   <br>
 
                     <!-- Developer-->
                     {% for developer in game["involved_companies"] %}
+                        {% if game["id"] in developer["company"]["developed"] and developer["company"]["logo"] %}
+                            <img src="https://images.igdb.com/igdb/image/upload/t_logo_med/{{ developer['company']['logo']['image_id'] }}.jpg" class="game_company_logo">
+                        {% endif %}
                         {% if game["id"] in developer["company"]["developed"] %}
                             <p class="card-title mt-2"> <strong>{{ developer["company"]["name"] }}</strong></p>
                         {% endif %}
@@ -81,6 +97,15 @@
                   </div>
                 {% endif %}
                 {% endfor %}
+
+              <!-- Videos -->
+                  {% if game["videos"] | length > 0 %}
+                  {% for video in game["videos"] %}
+                  <div class="carousel-item">
+                    <iframe src="https://www.youtube.com/embed/{{ video['video_id'] }}" width="853" height="600" class="d-block w-100" frameborder="0" allowfullscreen></iframe>
+                  </div>
+                  {% endfor %}
+                  {% endif %}
               </div>
               <button class="carousel-control-prev" type="button" data-bs-target="#screenshotCarousel" data-bs-slide="prev">
                 <span class="carousel-control-prev-icon" aria-hidden="true"></span>
@@ -98,14 +123,18 @@
             <!-- News-->
             <div class="card-body">
                 <h2>Recent News Mentioning {{ game["name"] }}</h2>
+                {% if game_news | length != 0 %}
                 {% for article in game_news %}
                     <p class="card-text">
-                        <img src="{{ article['urlToImage'] }}" style="max-height:5vh;">
+                        <img src="{{ article['image'] }}" style="max-height:5vh;">
                         <a href="{{ article['url'] }}">{{ article["title"] }}</a>
                         <br>
                         {{ article["description"] }}
                     </p>
                 {% endfor %}
+                {% else %}
+                <p class="card-text">No Recent News Found</p>
+                {% endif %}
             </div>
 
          </div>
