@@ -319,7 +319,13 @@ Home
             {% if game["game"] and game["game"]["release_dates"][0]['y'] is defined %}
                 {% if game["game"]["release_dates"][0]['y'] >= 2024 %}
                 <div class="col-lg-2 col-md-2 col-sm-4 card border-3 m-2 featured-card wrap overflow-scroll p-2">
-                    <button class="btn btn-info sticky-top m-1">Track Game</button>
+            <!-- Add game button -->
+            {% if current_user.user_games_saved is defined and game["id"] not in current_user.user_games_saved["added_games"] %}
+                <a type="add_button" class="btn btn-info sticky-top m-1" data-bs-toggle="add_button" href="{{ url_for('add_game', game_id=game['id']) }}" onfocus>Track Game</a>
+            {% elif current_user.user_games_saved is defined and game["id"] in current_user.user_games_saved["added_games"] %}
+                <a type="button" class="btn btn-secondary sticky-top" aria-disabled="true" data-bs-toggle="button" href="{{ url_for('add_game', game_id=game['id']) }}">Game Added</a>
+            {% else %}
+            {% endif %}
                     {% if game["game"]["cover"] is defined %}
                     <img class="card-image" src="https://images.igdb.com/igdb/image/upload/t_cover_big/{{game['game']['cover']['image_id']}}.jpg" alt="game cover">
                     {% endif %}

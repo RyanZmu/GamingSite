@@ -14,14 +14,14 @@
                     <img src="https://images.igdb.com/igdb/image/upload/t_1080p/{{game['cover']['image_id']}}.jpg" class="card-img-top" alt="...">
                     <span class="card-title" style="font-size: 2.2em;">{{ game["name"] }} ({{ game["release_dates"][0].y }}) </span>
                     <!-- Add game button -->
-                    <div></div>
+<!--                    <div></div>-->
                     {% if current_user.user_games_saved is defined and game["id"] not in current_user.user_games_saved["added_games"] %}
-                        <a type="add_button" class="btn btn-success sticky-top m-1" data-bs-toggle="add_button" href="{{ url_for('add_game', game_id=game['id']) }}" onfocus>Add Game</a>
+                        <a type="add_button" class="btn btn-success m-1" data-bs-toggle="add_button" href="{{ url_for('add_game', game_id=game['id']) }}" onfocus>Add Game</a>
                     {% elif current_user.user_games_saved is defined and game["id"] in current_user.user_games_saved["added_games"] %}
-                        <a type="button" class="btn btn-secondary sticky-top" aria-disabled="true" data-bs-toggle="button" href="{{ url_for('add_game', game_id=game['id']) }}">Game Added</a>
-                        <a type="remove_button" class="btn btn-danger sticky-top m-1" data-bs-toggle="remove_button" href="{{ url_for('remove_game', game_id=game['id']) }}">Remove Game</a>
+                        <a type="button" class="btn btn-secondary" aria-disabled="true" data-bs-toggle="button" href="{{ url_for('add_game', game_id=game['id']) }}">Game Added</a>
+                        <a type="remove_button" class="btn btn-danger m-1" data-bs-toggle="remove_button" href="{{ url_for('remove_game', game_id=game['id']) }}">Remove Game</a>
                     {% else %}
-                        <a type="add_button" class="btn btn-info sticky-top" data-bs-toggle="add_button" href="{{ url_for('login') }}">Log in to Add Game</a>
+                        <a type="add_button" class="btn btn-info" data-bs-toggle="add_button" href="{{ url_for('login') }}">Log in to Add Game</a>
                     {% endif %}
                     <br>
                      {% if game["total_rating"] is defined %}
@@ -48,6 +48,7 @@
                     {% endif %}
                    <br>
 
+                <!-- TODO align the logos in rows and make them clustered instead of new lines ex: http://127.0.0.1:5000/game/149980-->
                     <!-- Developer-->
                     {% for developer in game["involved_companies"] %}
                         {% if game["id"] in developer["company"]["developed"] and developer["company"]["logo"] %}
@@ -58,13 +59,13 @@
                         {% endif %}
                     {% endfor %}
 
-                    <h2 class="card-subtitle mt-2 mb-2">
+                    <span class="card-subtitle mt-2 mb-2" style="font-size:2.2em;">
                         {% for genre in game["genres"] %} <span class="badge rounded-pill bg-secondary mb-2">{{ genre["name"] }}</span> {% endfor %}
                         <br>
                         {% for platform in game["platforms"] %}
                             <span class="badge rounded-pill bg-primary mt-2 mb-2">{{ platform.abbreviation }}</span>
                         {% endfor %}
-                    </h2>
+                    </span>
                     <p class="card-text">
                         <span style="font-size:2em;">Game Summary</span>
                         <br>
@@ -141,5 +142,4 @@
         </div>
     </div>
 </div>
-
 {% endblock %}

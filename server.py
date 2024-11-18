@@ -176,7 +176,8 @@ def igdb_api(**kwargs):
     igdb_queries = {
         "igdb_top": igdb_top_data,
         "igdb_random": igdb_random_data,
-        "igdb_upcoming": filtered_upcoming_data
+        "igdb_upcoming": filtered_upcoming_data,
+        "igdb_searched": []
     }
     return igdb_queries
 
@@ -329,6 +330,7 @@ def update_api_data():
 
 @app.route(rule="/results<game_query>", methods=["GET"])
 def search(game_query):
+    global igdb_queries
     print(game_query)
 
     igdb_endpoint = "https://api.igdb.com/v4"
@@ -343,10 +345,12 @@ def search(game_query):
     game_data_request = requests.post(
         url=f"{igdb_endpoint}/games",
         headers=headers,
-        data=f'fields *, cover.*, platforms.*, release_dates.*, screenshots.*, videos.*, genres.*; search "{game_query}";)'
+        data=f'fields *, cover.*, platforms.*, release_dates.*, screenshots.*, videos.*, genres.*; search "{game_query}"; limit 50;)'
     )
     game_data = game_data_request.json()
     print(game_data)
+
+    igdb_queries["igdb_searched"] = game_data
 
     return render_template(template_name_or_list="search_results.html", results=game_data)
 
@@ -366,6 +370,8 @@ def add_game(game_id):
     if game_id not in game_list["added_games"]:
         game_list["added_games"].append(int(game_id))
 
+    # TODO Add the populates the game_page instead of using the query object - add a way to know if an add
+    #  is from game_page
     # Loops through both top and random games, will need on for upcoming
     # TODO Condense this down into as few loops as possible to avoid 2-3 loops at once - performance
     # TODO refactor to handle data as cache instead of vars
@@ -380,17 +386,36 @@ def add_game(game_id):
 
     if game_found is False:
         for game in igdb_queries["igdb_top"]:
-            print("found {game['name'] in top}")
+            print(f"found {game['name']} in top")
             if int(game["id"]) == int(game_id):
                 print(f"adding {game['name']}")
                 saved_games["game_data"].append(game)
                 game_found = True
                 flash(f"{game['name']} added to library")
 
-    # Add the updated list to the DB and commit
-    db.session.execute(db.update(User).where(User.id == current_user.id).values(user_games_saved=game_list))
-    db.session.execute(db.update(User).where(User.id == current_user.id).values(saved_game_data=saved_games))
-    db.session.commit()
+    if game_found is False:
+        for game in igdb_queries["igdb_upcoming"]:
+            print(f"found {game['game']['name']} in upcoming")
+            if int(game["id"]) == int(game_id):
+                print(f"adding {game['name']}")
+                saved_games["game_data"].append(game)
+                game_found = True
+                flash(f"{game['name']} added to library")
+
+    if game_found is False and len(igdb_queries["igdb_searched"]) > 0:
+        for game in igdb_queries["igdb_searched"]:
+            print(f"found {game['name']} in searched")
+            if int(game["id"]) == int(game_id):
+                print(f"adding {game['name']}")
+                saved_games["game_data"].append(game)
+                game_found = True
+                flash(f"{game['name']} added to library")
+
+    if game_found:
+        # Add the updated list to the DB and commit
+        db.session.execute(db.update(User).where(User.id == current_user.id).values(user_games_saved=game_list))
+        db.session.execute(db.update(User).where(User.id == current_user.id).values(saved_game_data=saved_games))
+        db.session.commit()
 
     return redirect(url_for(endpoint="home"))
 
@@ -486,7 +511,7 @@ def game_page(game_id):
 
     news_articles = []
 
-    return render_template( template_name_or_list="game_page.html",game=game_data[0], game_news=news_articles)
+    return render_template( template_name_or_list="game_page.html", game=game_data[0], game_news=news_articles)
 
 # Search Route here to lead to game pages
 # First user searches then sees a results page, clicks name of game and then the id is passed that way
