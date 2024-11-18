@@ -27,26 +27,50 @@ Home
     </section>
     <div class="col-lg-4 col-sm-6 hero-image-container">
      <div class="card text-bg-dark hero-image-card overflow-scroll">
-         {% if random_games[random_number]['cover'] is defined %}
-            <img src="https://images.igdb.com/igdb/image/upload/t_cover_big_2x/{{random_games[random_number]['cover']['image_id']}}.jpg" class="card-img hero-game-image" alt="...">
+          <!-- Select a random game from the list to display -->
+         {% set game = random_games | random %}
+         {% if game['cover'] is defined %}
+            <img src="https://images.igdb.com/igdb/image/upload/t_cover_big_2x/{{game['cover']['image_id']}}.jpg" class="card-img hero-game-image" alt="...">
          {% else %}
             <img src="../static/images/controller_favicon.png">
          {% endif %}
          <div class="card-img-overlay overflow-scroll">
         <h5 class="card-title">
             Featured Game:
-            <a href="{{ url_for('game_page', game_id=random_games[random_number]['id']) }}" style="text-decoration: none; color: #BBE1FA;">
-            <em>{{ random_games[random_number]["name"] }}
-            ({% if random_games[random_number]["release_dates"] is defined %} {{ random_games[random_number]["release_dates"][0]["y"] }} {% endif %}
-            {% for platform in random_games[random_number]["platforms"] %} {{ platform['abbreviation'] }} {% endfor %})
+            <a href="{{ url_for('game_page', game_id=game['id']) }}" style="text-decoration: none; color: #BBE1FA;">
+            <em>{{ game["name"] }}
+            ({% if game["release_dates"] is defined %} {{ game["release_dates"][0]["y"] }} {% endif %}
+            {% for platform in game["platforms"] %} {{ platform['abbreviation'] }} {% endfor %})
             </em>
             </a>
+            <br>
+            {% if game["total_rating"] is defined %}
+            <strong>
+                {% set rating = game["total_rating"] / 10.00 | round(0, 'floor') | float %}
+                 {{ rating | round(1, 'floor') }}
+                {% if rating >= 9.0 and rating <= 10.0 %}
+                    ★ ★ ★ ★ ★
+                {% elif rating >= 8.0 and rating < 9.0 %}
+                    ★ ★ ★ ★ ☆
+                {% elif rating >= 6.5 and rating < 8.0  %}
+                    ★ ★ ★ ☆ ☆
+                {% elif rating >= 5.0 and rating < 6.5  %}
+                    ★ ★ ☆ ☆ ☆
+                {% else %}
+                    ★ ☆ ☆ ☆ ☆
+                {% endif %}
+                <br> Ratings Count: {{ game["total_rating_count"] }}
+            </strong>
+            {% else %}
+            <strong><em>No Ratings Yet</em></strong>
+            {% endif %}
+            <br>
         </h5>
-        <p class="card-text">{{ random_games[random_number]["summary"] }}</p>
+        <p class="card-text">{{ game["summary"] }}</p>
         <!-- Screenshots -->
         <p class="card-text"><strong>Screenshots</strong></p>
-          {% if random_games[random_number]["screenshots"] | length > 0 %}
-            {% for screenshot in random_games[random_number]["screenshots"] %}
+          {% if game["screenshots"] | length > 0 %}
+            {% for screenshot in game["screenshots"] %}
                     <img src="https://images.igdb.com/igdb/image/upload/t_screenshot_med/{{ screenshot.image_id }}.jpg" class="card-img m-2 featured-game-screenshots">
             {% endfor %}
           {% else %}
@@ -54,8 +78,8 @@ Home
           {% endif %}
         <!-- Video -->
           <p class="card-text"><strong>Videos</strong></p>
-          {% if random_games[random_number]["videos"] | length > 0 %}
-                {% for video in random_games[random_number]["videos"] %}
+          {% if game["videos"] | length > 0 %}
+                {% for video in game["videos"] %}
                     <iframe src="https://www.youtube.com/embed/{{ video['video_id'] }}" class="featured-video card-img m-2" width="853" height="480" frameborder="0" allowfullscreen></iframe>
                 {% endfor %}
           {% else %}
@@ -133,7 +157,6 @@ Home
                                         ★ ★ ☆ ☆ ☆
                                     {% else %}
                                         ★ ☆ ☆ ☆ ☆
-
                                     {% endif %}
                                     <br> Ratings Count: {{ game["total_rating_count"] }}
                                 </strong>

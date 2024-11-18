@@ -63,7 +63,6 @@ igdb_queries = {
     "igdb_top": [],
     "igdb_random": [],
     "igdb_upcoming": [],
-    "user_game_data": []
 }
 
 def get_twitch_token():
@@ -178,12 +177,8 @@ def igdb_api(**kwargs):
         "igdb_random": igdb_random_data,
         "igdb_upcoming": filtered_upcoming_data
     }
-
     return igdb_queries
 
-
-# Initial API call to fill igdb_queries
-igdb_api()
 
 # User Routes
 @login_manager.user_loader
@@ -265,6 +260,11 @@ def register_user():
 def home(**kwargs):
     global igdb_queries
 
+    # Check if the random games list is filled, if not then call the API
+    # TODO still consider caching API data instead of relying on this logic
+    if len(igdb_queries["igdb_random"]) == 0:
+        igdb_api()
+
     # Get 10 random games to display on homepage for users to check out
     random_games = igdb_queries["igdb_random"]
     # print(random_games)
@@ -302,7 +302,6 @@ def home(**kwargs):
         date=datetime.now(),
         time=time.time(),
         add_game=add_game,
-        random_number=randint(0, len(random_games)-1),
         discover_form=discover_form,
     )
 
@@ -323,20 +322,34 @@ def add_game(game_id):
     game_list = db.session.execute(db.select(User.user_games_saved).where(User.id == current_user.id)).scalar()
     saved_games = db.session.execute(db.select(User.saved_game_data).where(User.id == current_user.id)).scalar()
 
+    # Boolean for if a game is found in one of the lists
+    game_found = False
+
     # Update the list if game is not already in list
     # Update added_games with ID
     if game_id not in game_list["added_games"]:
         game_list["added_games"].append(int(game_id))
 
-    # print(igdb_queries)
-    for game in igdb_queries["igdb_random"]:
-        print(f"found {game['name']}")
-        if int(game["id"]) == int(game_id):
-            print(f"adding {game['name']}")
-            saved_games["game_data"].append(game)
+    # Loops through both top and random games, will need on for upcoming
+    # TODO Condense this down into as few loops as possible to avoid 2-3 loops at once - performance
+    # TODO refactor to handle data as cache instead of vars
+    if game_found is False:
+        for game in igdb_queries["igdb_random"]:
+            print(f"found {game['name']} in random")
+            if int(game["id"]) == int(game_id):
+                print(f"adding {game['name']}")
+                saved_games["game_data"].append(game)
+                game_found = True
+                flash(f"{game['name']} added to library")
 
-            # TODO: Change this flash to display game names instead of ID numbers
-            flash(f"{game['name']} added to library")
+    if game_found is False:
+        for game in igdb_queries["igdb_top"]:
+            print("found {game['name'] in top}")
+            if int(game["id"]) == int(game_id):
+                print(f"adding {game['name']}")
+                saved_games["game_data"].append(game)
+                game_found = True
+                flash(f"{game['name']} added to library")
 
     # Add the updated list to the DB and commit
     db.session.execute(db.update(User).where(User.id == current_user.id).values(user_games_saved=game_list))
@@ -379,6 +392,9 @@ def remove_game(game_id):
 # Game Page
 @app.route(rule="/game/<game_id>", methods=["GET"])
 def game_page(game_id):
+    global igdb_queries
+
+    # TODO in future avoid API call if the game's data is present in igdb query data
     igdb_endpoint = "https://api.igdb.com/v4"
     token = get_twitch_token()
 
@@ -393,64 +409,48 @@ def game_page(game_id):
         headers=headers,
         data=f"fields *, cover.*, platforms.*, release_dates.*, screenshots.*, videos.*, genres.*, "
              f"age_ratings.*, artworks.*, dlcs.*, expansions.*, external_games.*, "
-             f"involved_companies.company.*, similar_games.*, themes.*, language_supports.*, collections.*; where id=({game_id});")
+             f"involved_companies.company.*, involved_companies.company.logo.*, similar_games.*, themes.*, language_supports.*, collections.*; where id=({game_id});")
     game_data = game_data_request.json()
-    # print(game_data[0]["name"])
+    # print(game_data[0])
 
-    # Get Game's news
-    # Error catch for when NEWS API rate limits hit - consider finding a new API to use for gaming news
-    # Currently using
-    try:
-        # news_endpoint = "https://newsapi.org/v2/everything"
-        # news_params = {
-        #     "apiKey": NEWS_API_KEY,
-        #     "q": f'{game_data[0]["name"]}',
-        #     "pageSize": 5,
-        #     "language": "en",
-        #     "excludeDomains": "cardchronicle.com,mlbtraderumors.com,mgoblog.com,japan.cnet.com",
-        # }
-        #
-        # news_request = requests.get(news_endpoint, params=news_params)
-        # news_data = news_request.json()
-        #
-        # news_articles = news_data["articles"]
-        # print(news_articles)
+    # Get Game's news - comment out when testing to avoid excessive api calls
+    # try:
+    #     # GNEWS API
+    #     gnews_key = os.environ.get("GNEWS_API_KEY")
+    #     gnews_baseurl = "https://gnews.io/api/v4/"
+    #
+    #     # remove special chars and then any double spaces left behind when chars are removed - clunky solution.
+    #     game_name = re.sub("[^A-Za-z0-9]|[\s]", " ", game_data[0]["name"])
+    #     # If 2 or more spaces, replace with a SINGLE space to avoid query errors
+    #     game_name_final = re.sub("\s{2,}", " ", game_name)
+    #     print(game_name_final)
+    #
+    #     # Add platform abbreviation to help results avoid irrelevant articles
+    #     gnews_params = {
+    #         "apikey": gnews_key,
+    #         "q": f"{game_name_final} {game_data[0]['platforms'][0]['abbreviation']}",
+    #         "lang": "en",
+    #         "country": "us",
+    #         "sortby": "publishedAt",
+    #         "max": 10,
+    #     }
+    #
+    #     gnews_search = requests.get(f"{gnews_baseurl}/search", params=gnews_params)
+    #     gnews_data = gnews_search.json()
+    #     print(gnews_data)
+    #
+    #     news_articles = gnews_data["articles"]
+    #
+    # except KeyError as e:
+    #     print("Error: news api data missing - possible rate limit hit or query error")
+    #     print(e)
+    #     news_articles = []
+    # else:
+    #     print("news api data found")
 
-        # Try GNEWS API
-        gnews_key = os.environ.get("GNEWS_API_KEY")
+    news_articles = []
 
-        gnews_baseurl = "https://gnews.io/api/v4/"
-
-        # remove special chars and also any double spaces left behind when chars are removed - clunky solution.
-        game_name = re.sub("[^A-Za-z0-9]|[\s]", " ", game_data[0]["name"])
-        game_name_final = re.sub("\s{2,}", " ", game_name)
-        print(game_name_final)
-
-        gnews_params = {
-            "apikey": gnews_key,
-            "q": f"{game_name_final}",
-            "lang": "en",
-            "sortby": "publishedAt",
-            "max": 10,
-        }
-
-        gnews_search = requests.get(f"{gnews_baseurl}/search", params=gnews_params)
-        gnews_data = gnews_search.json()
-        print(gnews_data)
-
-        news_articles = gnews_data["articles"]
-
-    except KeyError as e:
-        print("news api data missing - possible rate limit hit")
-        print(e)
-    else:
-        print("news api data found")
-
-
-
-
-    return render_template(template_name_or_list="game_page.html", game=game_data[0], game_news=news_articles)
-
+    return render_template( template_name_or_list="game_page.html",game=game_data[0], game_news=news_articles)
 
 # Search Route here to lead to game pages
 # First user searches then sees a results page, clicks name of game and then the id is passed that way

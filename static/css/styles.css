@@ -169,3 +169,8 @@ body {
   font-weight: 10;
   font-style: normal;
 }
+
+.game_company_logo {
+    max-width: 5vw;
+    max-height: 10vh;
+}
