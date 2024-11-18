@@ -1,3 +1,4 @@
+from crypt import methods
 from types import NoneType
 import dotenv
 import hashlib
@@ -12,7 +13,7 @@ import re
 from dotenv import load_dotenv
 import requests
 from flask_wtf.csrf import CSRFProtect
-from forms import RegisterForm, LoginForm, DiscoverForm
+from forms import RegisterForm, LoginForm, DiscoverForm, SearchForm
 from database import db
 from database import User
 from flask_ckeditor import CKEditor
@@ -276,6 +277,18 @@ def home(**kwargs):
     top_games = igdb_queries["igdb_top"]
     # print(igdb_top)
 
+    # Search
+    # TODO work this out so this logic works for any page and the search bar eventually will go into the nav bar
+    search_form = SearchForm()
+
+    if search_form.validate_on_submit():
+        # Call api and get results, redirect to the results route
+        game_query = search_form.data.get("search")
+        print(game_query)
+
+        return redirect(url_for("search", game_query=game_query))
+
+
     # Discovery Form
     discover_form = DiscoverForm()
 
@@ -303,6 +316,7 @@ def home(**kwargs):
         time=time.time(),
         add_game=add_game,
         discover_form=discover_form,
+        search_bar=search_form
     )
 
 # Use this route to let the user Update the games shown and eventually set API update intervals
@@ -313,7 +327,29 @@ def update_api_data():
     flash("Games Updated")
     return redirect(url_for("home"))
 
-# TODO: Add a Remove game route as well
+@app.route(rule="/results<game_query>", methods=["GET"])
+def search(game_query):
+    print(game_query)
+
+    igdb_endpoint = "https://api.igdb.com/v4"
+    token = get_twitch_token()
+
+    headers = {
+        "Client-ID": TWITCH_CLIENT,
+        "Authorization": f"Bearer {token}",
+    }
+
+    # API Call
+    game_data_request = requests.post(
+        url=f"{igdb_endpoint}/games",
+        headers=headers,
+        data=f'fields *, cover.*, platforms.*, release_dates.*, screenshots.*, videos.*, genres.*; search "{game_query}";)'
+    )
+    game_data = game_data_request.json()
+    print(game_data)
+
+    return render_template(template_name_or_list="search_results.html", results=game_data)
+
 @app.route(rule="/add_game/<game_id>")
 @login_required
 def add_game(game_id):
