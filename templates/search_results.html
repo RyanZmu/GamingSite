@@ -12,6 +12,8 @@ Search Results
     <div class="col-2 card m-2 p-2">
        {% if game['cover'] is defined %}
         <img src="https://images.igdb.com/igdb/image/upload/t_cover_big/{{ game['cover']['image_id'] }}.jpg" class="card-img" style="max-height:20vh; max-width:10vw;">
+        {% else %}
+        <img src="../static/images/controller_favicon.png">
        {% endif %}
 
         <a href="{{ url_for('game_page', game_id=game['id']) }}" style="text-decoration: none; color: #BBE1FA;">
@@ -39,6 +41,10 @@ Search Results
             {% else %}
             <strong><em>No Ratings Yet</em></strong>
             {% endif %}
+            <br>
+            {% for platform in game["platforms"] %}
+               <span class="badge rounded-pill bg-primary"> {{ platform["abbreviation"] }} </span>
+            {% endfor %}
         </p>
     </div>
     {% endfor %}

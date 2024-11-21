@@ -88,6 +88,7 @@
             <div id="screenshotCarousel" class="carousel slide" data-bs-ride="carousel">
               <div class="carousel-inner">
                 {% for screenshot in game["screenshots"] %}
+                <!-- Set first screenshot as the active item in the carousel -->
                 {% if game["screenshots"].index(screenshot) == 0 %}
                     <div class="carousel-item active">
                       <img src="https://images.igdb.com/igdb/image/upload/t_1080p/{{screenshot['image_id']}}.jpg" class="d-block w-100 card-img" alt="...">

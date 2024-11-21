@@ -64,6 +64,7 @@ igdb_queries = {
     "igdb_top": [],
     "igdb_random": [],
     "igdb_upcoming": [],
+    "igdb_searched": [],
 }
 
 def get_twitch_token():
@@ -129,7 +130,7 @@ def igdb_api(**kwargs):
         # print(igdb_random_data)
 
     # TODO: Make this more random and varied if possible
-    print(len(igdb_random_data))
+    # print(len(igdb_random_data))
     if len(igdb_random_data) == 0:
         igdb_request = requests.post(
             url=f"{igdb_endpoint}/games",
@@ -150,18 +151,16 @@ def igdb_api(**kwargs):
     igdb_upcoming_data = igdb_upcoming_request.json()
     # print(igdb_upcoming_data)
 
-    # Remove duplicate games from the upcoming game data
-    current_game_name = ""
+    # Remove duplicate games from the upcoming game data post api call
+    # Empty array to hold game data and names, due to many duplicate records
     filtered_upcoming_data = []
+    game_names = []
+
     for game in igdb_upcoming_data:
-        # print(game['game']['name'])
-
-        if game["game"] and game['game']['name'] != current_game_name:
-            current_game_name = game["game"]['name']
+        # Check for unique game name each loop to ensure no duplicates are displayed
+        if game["game"]["name"] not in game_names:
             filtered_upcoming_data.append(game)
-            # print(current_game_name)
-
-
+            game_names.append(game["game"]["name"])
 
     # Get Top 10 most popular games
     igdb_top_request = requests.post(
@@ -171,8 +170,8 @@ def igdb_api(**kwargs):
     igdb_top_data = igdb_top_request.json()
     # print(igdb_top_data)
 
-    # TODO: Look into making one large query for everything and sort it nicely in the DB
-    # Bundle all queries into a single object
+    # TODO: Look into making one large query for everything and cache it
+    # Bundle all queries into a single object - igdb_searched empty until a user searches for a game
     igdb_queries = {
         "igdb_top": igdb_top_data,
         "igdb_random": igdb_random_data,
@@ -393,15 +392,6 @@ def add_game(game_id):
                 game_found = True
                 flash(f"{game['name']} added to library")
 
-    if game_found is False:
-        for game in igdb_queries["igdb_upcoming"]:
-            print(f"found {game['game']['name']} in upcoming")
-            if int(game["id"]) == int(game_id):
-                print(f"adding {game['name']}")
-                saved_games["game_data"].append(game)
-                game_found = True
-                flash(f"{game['name']} added to library")
-
     if game_found is False and len(igdb_queries["igdb_searched"]) > 0:
         for game in igdb_queries["igdb_searched"]:
             print(f"found {game['name']} in searched")
@@ -410,6 +400,16 @@ def add_game(game_id):
                 saved_games["game_data"].append(game)
                 game_found = True
                 flash(f"{game['name']} added to library")
+
+    if game_found is False:
+        # game ID must be set for upcoming section
+        for game in igdb_queries["igdb_upcoming"]:
+            print(f"found {game['game']['name']} in upcoming")
+            if int(game['game']["id"]) == int(game_id):
+                print(f"adding {game['game']['name']}")
+                saved_games["game_data"].append(game['game'])
+                game_found = True
+                flash(f"{game['game']['name']} added to library")
 
     if game_found:
         # Add the updated list to the DB and commit
@@ -428,7 +428,6 @@ def remove_game(game_id):
     if int(game_id) in game_list["added_games"]:
         print(f"Removing {game_id}")
         game_list["added_games"].pop(game_list["added_games"].index(int(game_id)))
-        # TODO: Change this flash to display game names instead of ID numbers
         flash(f"Game removed from library")
 
         # Add the updated list to the DB and commit
