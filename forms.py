@@ -19,6 +19,9 @@ class LoginForm(FlaskForm):
     # render_kw sets a keyword for the button, can be used to ID which button is primary if many are on a page
     submit = SubmitField(label="Sign In!", render_kw={'btn-primary': 'True'})
 
+class SearchForm(FlaskForm):
+    search = StringField(label="Search", validators=[DataRequired()])
+    submit = SubmitField(label="Submit", render_kw={'btn-secondary': 'True'})
 
 class DiscoverForm(FlaskForm):
     platform = RadioField(

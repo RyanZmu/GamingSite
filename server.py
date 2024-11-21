@@ -1,3 +1,4 @@
+from crypt import methods
 from types import NoneType
 import dotenv
 import hashlib
@@ -12,7 +13,7 @@ import re
 from dotenv import load_dotenv
 import requests
 from flask_wtf.csrf import CSRFProtect
-from forms import RegisterForm, LoginForm, DiscoverForm
+from forms import RegisterForm, LoginForm, DiscoverForm, SearchForm
 from database import db
 from database import User
 from flask_ckeditor import CKEditor
@@ -63,6 +64,7 @@ igdb_queries = {
     "igdb_top": [],
     "igdb_random": [],
     "igdb_upcoming": [],
+    "igdb_searched": [],
 }
 
 def get_twitch_token():
@@ -128,7 +130,7 @@ def igdb_api(**kwargs):
         # print(igdb_random_data)
 
     # TODO: Make this more random and varied if possible
-    print(len(igdb_random_data))
+    # print(len(igdb_random_data))
     if len(igdb_random_data) == 0:
         igdb_request = requests.post(
             url=f"{igdb_endpoint}/games",
@@ -149,18 +151,16 @@ def igdb_api(**kwargs):
     igdb_upcoming_data = igdb_upcoming_request.json()
     # print(igdb_upcoming_data)
 
-    # Remove duplicate games from the upcoming game data
-    current_game_name = ""
+    # Remove duplicate games from the upcoming game data post api call
+    # Empty array to hold game data and names, due to many duplicate records
     filtered_upcoming_data = []
+    game_names = []
+
     for game in igdb_upcoming_data:
-        # print(game['game']['name'])
-
-        if game["game"] and game['game']['name'] != current_game_name:
-            current_game_name = game["game"]['name']
+        # Check for unique game name each loop to ensure no duplicates are displayed
+        if game["game"]["name"] not in game_names:
             filtered_upcoming_data.append(game)
-            # print(current_game_name)
-
-
+            game_names.append(game["game"]["name"])
 
     # Get Top 10 most popular games
     igdb_top_request = requests.post(
@@ -170,12 +170,13 @@ def igdb_api(**kwargs):
     igdb_top_data = igdb_top_request.json()
     # print(igdb_top_data)
 
-    # TODO: Look into making one large query for everything and sort it nicely in the DB
-    # Bundle all queries into a single object
+    # TODO: Look into making one large query for everything and cache it
+    # Bundle all queries into a single object - igdb_searched empty until a user searches for a game
     igdb_queries = {
         "igdb_top": igdb_top_data,
         "igdb_random": igdb_random_data,
-        "igdb_upcoming": filtered_upcoming_data
+        "igdb_upcoming": filtered_upcoming_data,
+        "igdb_searched": []
     }
     return igdb_queries
 
@@ -276,6 +277,18 @@ def home(**kwargs):
     top_games = igdb_queries["igdb_top"]
     # print(igdb_top)
 
+    # Search
+    # TODO work this out so this logic works for any page and the search bar eventually will go into the nav bar
+    search_form = SearchForm()
+
+    if search_form.validate_on_submit():
+        # Call api and get results, redirect to the results route
+        game_query = search_form.data.get("search")
+        print(game_query)
+
+        return redirect(url_for("search", game_query=game_query))
+
+
     # Discovery Form
     discover_form = DiscoverForm()
 
@@ -303,6 +316,7 @@ def home(**kwargs):
         time=time.time(),
         add_game=add_game,
         discover_form=discover_form,
+        search_bar=search_form
     )
 
 # Use this route to let the user Update the games shown and eventually set API update intervals
@@ -313,7 +327,32 @@ def update_api_data():
     flash("Games Updated")
     return redirect(url_for("home"))
 
-# TODO: Add a Remove game route as well
+@app.route(rule="/results<game_query>", methods=["GET"])
+def search(game_query):
+    global igdb_queries
+    print(game_query)
+
+    igdb_endpoint = "https://api.igdb.com/v4"
+    token = get_twitch_token()
+
+    headers = {
+        "Client-ID": TWITCH_CLIENT,
+        "Authorization": f"Bearer {token}",
+    }
+
+    # API Call
+    game_data_request = requests.post(
+        url=f"{igdb_endpoint}/games",
+        headers=headers,
+        data=f'fields *, cover.*, platforms.*, release_dates.*, screenshots.*, videos.*, genres.*; search "{game_query}"; limit 50;)'
+    )
+    game_data = game_data_request.json()
+    print(game_data)
+
+    igdb_queries["igdb_searched"] = game_data
+
+    return render_template(template_name_or_list="search_results.html", results=game_data)
+
 @app.route(rule="/add_game/<game_id>")
 @login_required
 def add_game(game_id):
@@ -330,6 +369,8 @@ def add_game(game_id):
     if game_id not in game_list["added_games"]:
         game_list["added_games"].append(int(game_id))
 
+    # TODO Add the populates the game_page instead of using the query object - add a way to know if an add
+    #  is from game_page
     # Loops through both top and random games, will need on for upcoming
     # TODO Condense this down into as few loops as possible to avoid 2-3 loops at once - performance
     # TODO refactor to handle data as cache instead of vars
@@ -344,17 +385,37 @@ def add_game(game_id):
 
     if game_found is False:
         for game in igdb_queries["igdb_top"]:
-            print("found {game['name'] in top}")
+            print(f"found {game['name']} in top")
             if int(game["id"]) == int(game_id):
                 print(f"adding {game['name']}")
                 saved_games["game_data"].append(game)
                 game_found = True
                 flash(f"{game['name']} added to library")
 
-    # Add the updated list to the DB and commit
-    db.session.execute(db.update(User).where(User.id == current_user.id).values(user_games_saved=game_list))
-    db.session.execute(db.update(User).where(User.id == current_user.id).values(saved_game_data=saved_games))
-    db.session.commit()
+    if game_found is False and len(igdb_queries["igdb_searched"]) > 0:
+        for game in igdb_queries["igdb_searched"]:
+            print(f"found {game['name']} in searched")
+            if int(game["id"]) == int(game_id):
+                print(f"adding {game['name']}")
+                saved_games["game_data"].append(game)
+                game_found = True
+                flash(f"{game['name']} added to library")
+
+    if game_found is False:
+        # game ID must be set for upcoming section
+        for game in igdb_queries["igdb_upcoming"]:
+            print(f"found {game['game']['name']} in upcoming")
+            if int(game['game']["id"]) == int(game_id):
+                print(f"adding {game['game']['name']}")
+                saved_games["game_data"].append(game['game'])
+                game_found = True
+                flash(f"{game['game']['name']} added to library")
+
+    if game_found:
+        # Add the updated list to the DB and commit
+        db.session.execute(db.update(User).where(User.id == current_user.id).values(user_games_saved=game_list))
+        db.session.execute(db.update(User).where(User.id == current_user.id).values(saved_game_data=saved_games))
+        db.session.commit()
 
     return redirect(url_for(endpoint="home"))
 
@@ -367,7 +428,6 @@ def remove_game(game_id):
     if int(game_id) in game_list["added_games"]:
         print(f"Removing {game_id}")
         game_list["added_games"].pop(game_list["added_games"].index(int(game_id)))
-        # TODO: Change this flash to display game names instead of ID numbers
         flash(f"Game removed from library")
 
         # Add the updated list to the DB and commit
@@ -450,7 +510,7 @@ def game_page(game_id):
 
     news_articles = []
 
-    return render_template( template_name_or_list="game_page.html",game=game_data[0], game_news=news_articles)
+    return render_template( template_name_or_list="game_page.html", game=game_data[0], game_news=news_articles)
 
 # Search Route here to lead to game pages
 # First user searches then sees a results page, clicks name of game and then the id is passed that way

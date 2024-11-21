@@ -1,0 +1,57 @@
+{% extends 'base.html' %}
+
+{% block title %}
+Search Results
+{% endblock %}
+
+{% block content %}
+<div class="container">
+  <h1>Top Search Results:</h1>
+  <div class="row">
+    {% for game in results %}
+    <div class="col-2 card m-2 p-2">
+       {% if game['cover'] is defined %}
+        <img src="https://images.igdb.com/igdb/image/upload/t_cover_big/{{ game['cover']['image_id'] }}.jpg" class="card-img" style="max-height:20vh; max-width:10vw;">
+        {% else %}
+        <img src="../static/images/controller_favicon.png">
+       {% endif %}
+
+        <a href="{{ url_for('game_page', game_id=game['id']) }}" style="text-decoration: none; color: #BBE1FA;">
+          <span class="card-title">{{ game["name"] }} </span>
+        </a>
+
+        <p class="card-text">
+          {% if game["total_rating"] is defined %}
+            <strong>
+                {% set rating = game["total_rating"] / 10.00 | round(0, 'floor') | float %}
+                 {{ rating | round(1, 'floor') }}
+                {% if rating >= 9.0 and rating <= 10.0 %}
+                    ★ ★ ★ ★ ★
+                {% elif rating >= 8.0 and rating < 9.0 %}
+                    ★ ★ ★ ★ ☆
+                {% elif rating >= 6.5 and rating < 8.0  %}
+                    ★ ★ ★ ☆ ☆
+                {% elif rating >= 5.0 and rating < 6.5  %}
+                    ★ ★ ☆ ☆ ☆
+                {% else %}
+                    ★ ☆ ☆ ☆ ☆
+                {% endif %}
+                <br> Ratings Count: {{ game["total_rating_count"] }}
+            </strong>
+            {% else %}
+            <strong><em>No Ratings Yet</em></strong>
+            {% endif %}
+            <br>
+            {% for platform in game["platforms"] %}
+               <span class="badge rounded-pill bg-primary"> {{ platform["abbreviation"] }} </span>
+            {% endfor %}
+        </p>
+    </div>
+    {% endfor %}
+
+  {% if results | length == 0  %}
+      No games found! Try rephrasing and searching again!
+  {% endif %}
+  </div>
+</div>
+{% endblock %}
