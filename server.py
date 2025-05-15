@@ -23,8 +23,8 @@ from flask_login import login_user, LoginManager, login_required, current_user, 
 import psycopg2
 from random import randint
 from datetime import datetime
-import requests_cache
-from requests_cache import CachedSession
+# import requests_cache
+# from requests_cache import CachedSession
 
 app = Flask(__name__)
 
