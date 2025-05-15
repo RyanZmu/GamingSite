@@ -140,14 +140,16 @@ def igdb_api(**kwargs):
     # print(igdb_random_data)
 
     # Get Upcoming games
-    # current_year = str(datetime.year)
-    # print({"current_year": current_year})
+    current_date = round(datetime.timestamp(datetime.now()))
+    print(current_date)
+    # TODO get game's timestamp for release date and convert it with date time to get more accurate readings
+    # via datetime.fromtimestamp(timestamp).<month/day/year>
 
     # TODO Work on getting more relevant new releases to display and no duplicates
     igdb_upcoming_request = requests.post(
         url=f"{igdb_endpoint}/release_dates",
         headers=headers,
-        data=f"fields *, game.*, game.cover.*, game.release_dates.*, game.screenshots.*; where y = 2024 & m=(11,12) & game.hypes >= 10; limit 300; sort date asc;")
+        data=f"fields *, game.*, game.cover.*, game.release_dates.*, game.first_release_date, game.screenshots.*, game.platforms.*, game.genres.*; where game.first_release_date >= {current_date} & game.hypes >= 10; limit 300; sort date asc;")
     igdb_upcoming_data = igdb_upcoming_request.json()
     # print(igdb_upcoming_data)
 
@@ -166,7 +168,7 @@ def igdb_api(**kwargs):
     igdb_top_request = requests.post(
             url=f"{igdb_endpoint}/games",
             headers=headers,
-            data=f"fields *, cover.*, platforms.*, release_dates.*; where aggregated_rating > {randint(85, 99)}; limit 10; sort aggregated_rating;")
+            data=f"fields *, cover.*, platforms.*, release_dates.*, screenshots.*, videos.*, genres.*; where aggregated_rating > {randint(85, 99)}; limit 10; sort aggregated_rating;")
     igdb_top_data = igdb_top_request.json()
     # print(igdb_top_data)
 
@@ -474,41 +476,41 @@ def game_page(game_id):
     # print(game_data[0])
 
     # Get Game's news - comment out when testing to avoid excessive api calls
-    # try:
-    #     # GNEWS API
-    #     gnews_key = os.environ.get("GNEWS_API_KEY")
-    #     gnews_baseurl = "https://gnews.io/api/v4/"
-    #
-    #     # remove special chars and then any double spaces left behind when chars are removed - clunky solution.
-    #     game_name = re.sub("[^A-Za-z0-9]|[\s]", " ", game_data[0]["name"])
-    #     # If 2 or more spaces, replace with a SINGLE space to avoid query errors
-    #     game_name_final = re.sub("\s{2,}", " ", game_name)
-    #     print(game_name_final)
-    #
-    #     # Add platform abbreviation to help results avoid irrelevant articles
-    #     gnews_params = {
-    #         "apikey": gnews_key,
-    #         "q": f"{game_name_final} {game_data[0]['platforms'][0]['abbreviation']}",
-    #         "lang": "en",
-    #         "country": "us",
-    #         "sortby": "publishedAt",
-    #         "max": 10,
-    #     }
-    #
-    #     gnews_search = requests.get(f"{gnews_baseurl}/search", params=gnews_params)
-    #     gnews_data = gnews_search.json()
-    #     print(gnews_data)
-    #
-    #     news_articles = gnews_data["articles"]
-    #
-    # except KeyError as e:
-    #     print("Error: news api data missing - possible rate limit hit or query error")
-    #     print(e)
-    #     news_articles = []
-    # else:
-    #     print("news api data found")
+    try:
+        # GNEWS API
+        gnews_key = os.environ.get("GNEWS_API_KEY")
+        gnews_baseurl = "https://gnews.io/api/v4/"
 
-    news_articles = []
+        # remove special chars and then any double spaces left behind when chars are removed - clunky solution.
+        game_name = re.sub("[^A-Za-z0-9]|[\s]", " ", game_data[0]["name"])
+        # If 2 or more spaces, replace with a SINGLE space to avoid query errors
+        game_name_final = re.sub("\s{2,}", " ", game_name)
+        print(f"{game_name_final} {game_data[0]['platforms'][0]['abbreviation']}")
+
+        # Add platform abbreviation to help results avoid irrelevant articles
+        gnews_params = {
+            "apikey": gnews_key,
+            "q": f"{game_name_final} {game_data[0]['platforms'][0]['abbreviation']}",
+            "lang": "en",
+            "country": "us",
+            "sortby": "publishedAt",
+            "max": 10,
+        }
+
+        gnews_search = requests.get(f"{gnews_baseurl}/search", params=gnews_params)
+        gnews_data = gnews_search.json()
+        print(gnews_data)
+
+        news_articles = gnews_data["articles"]
+
+    except KeyError as e:
+        print("Error: news api data missing - possible rate limit hit or query error")
+        print(e)
+        news_articles = []
+    else:
+        print("news api data found")
+
+    # news_articles = []
 
     return render_template( template_name_or_list="game_page.html", game=game_data[0], game_news=news_articles)
 

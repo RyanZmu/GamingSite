@@ -314,18 +314,15 @@ Home
         <hr>
     <div class="d-flex flex-row nowrap overflow-x-scroll">
         {% for game in upcoming_games %}
-            <!--use if statement as games will still sometimes populate without date and with dates before 2024-->
-            <!-- TODO remove the hardcoded dates at some point (hardcoded month in query) -->
-            {% if game["game"] and game["game"]["release_dates"][0]['y'] is defined %}
-                {% if game["game"]["release_dates"][0]['y'] >= 2024 %}
+                {% if game['game']['release_dates'][0]['m'] %}
                 <div class="col-lg-2 col-md-2 col-sm-4 card border-3 m-2 featured-card wrap overflow-scroll p-2">
-            <!-- Add game button -->
-            {% if current_user.user_games_saved is defined and game["game"]["id"] not in current_user.user_games_saved["added_games"] %}
-                <a type="add_button" class="btn btn-info sticky-top m-1" data-bs-toggle="add_button" href="{{ url_for('add_game', game_id=game['game']['id']) }}" onfocus>Track Game</a>
-            {% elif current_user.user_games_saved is defined and game["game"]["id"] in current_user.user_games_saved["added_games"] %}
-                <a type="button" class="btn btn-secondary sticky-top disabled" aria-disabled="true" data-bs-toggle="button">Game Added</a>
-            {% else %}
-            {% endif %}
+                    <!-- Add game button -->
+                    {% if current_user.user_games_saved is defined and game["game"]["id"] not in current_user.user_games_saved["added_games"] %}
+                        <a type="add_button" class="btn btn-info sticky-top m-1" data-bs-toggle="add_button" href="{{ url_for('add_game', game_id=game['game']['id']) }}" onfocus>Track Game</a>
+                    {% elif current_user.user_games_saved is defined and game["game"]["id"] in current_user.user_games_saved["added_games"] %}
+                        <a type="button" class="btn btn-secondary sticky-top disabled" aria-disabled="true" data-bs-toggle="button">Game Added</a>
+                    {% else %}
+                    {% endif %}
                     {% if game["game"]["cover"] is defined %}
                     <img class="card-image" src="https://images.igdb.com/igdb/image/upload/t_cover_big/{{game['game']['cover']['image_id']}}.jpg" alt="game cover">
                     {% endif %}
@@ -333,7 +330,11 @@ Home
                         <p class="card-title m-2">
                             <a href="{{ url_for('game_page', game_id=game['game']['id']) }}" style="text-decoration:none; color:#BBE1FA;">{{ game["game"]["name"] }}</a>
                             <br>
+                            {% if game['game']['release_dates'][0]['m'] %}
                             Coming Out: {{game['game']['release_dates'][0]['m']}}/{{ game['game']['release_dates'][0]['y'] }}
+                            {% else %}
+                            Coming Out: TBD
+                            {% endif %}
                             <br><br>
                             {{ game["game"]["summary"] }}
 
@@ -359,7 +360,6 @@ Home
 
                         </div>
                         {% endif %}
-                    {% endif %}
                 {% endfor %}
             </div>
         </div>
